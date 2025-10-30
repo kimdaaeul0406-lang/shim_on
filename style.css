@@ -1,0 +1,1458 @@
+/* ============================================================
+   쉼on – Mobile-first UI (Final Replace)
+   ============================================================ */
+
+:root {
+  --point: #6bb7d9;
+  --bg: #ffffff;
+  --card: #ffffff;
+  --text: var(--point);
+  --muted: rgba(107, 183, 217, 0.75);
+  --line: rgba(107, 183, 217, 0.55);
+  --brand: var(--point);
+  --accent: var(--point);
+  --green: #10b981;
+  --danger: #ef4444;
+}
+
+/* 반응형 기본 글꼴 크기 */
+html {
+  font-size: clamp(14px, 3.5vw, 16px);
+}
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 1rem/1.5 system-ui, Apple SD Gothic Neo, Segoe UI, Roboto,
+    Apple Color Emoji, Noto Color Emoji;
+}
+body.no-scroll {
+  overflow: hidden;
+  height: 100dvh;
+}
+
+/* 모바일 스크롤 개선 */
+body {
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+}
+
+/* 접근성 개선 */
+*:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* 스킵 링크 (접근성) */
+.skip-link {
+  position: absolute;
+  top: -40px;
+  left: 6px;
+  background: var(--accent);
+  color: white;
+  padding: 8px;
+  text-decoration: none;
+  border-radius: 4px;
+  z-index: 1000;
+}
+.skip-link:focus {
+  top: 6px;
+}
+
+/* 다크 모드 토큰 */
+body.dark {
+  --point: #6bb7d9;
+  --bg: #060a12;
+  --card: #0c1322;
+  --text: var(--point);
+  --muted: rgba(107, 183, 217, 0.75);
+  --line: rgba(107, 183, 217, 0.55);
+  --brand: var(--point);
+  --accent: var(--point);
+}
+
+*,
+*:before,
+*:after {
+  box-sizing: border-box;
+}
+.app {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ===== AppBar ================================================= */
+.appbar {
+  position: sticky;
+  top: 0;
+  z-index: 999;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 64px;
+  padding: 0 14px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--line);
+}
+.brand-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.brand {
+  font-weight: 900;
+  letter-spacing: 0.2px;
+  color: var(--brand);
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.brand img {
+  height: 44px;
+  vertical-align: middle;
+  object-fit: contain;
+}
+.subbrand {
+  font-size: 0.85rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+/* 다크모드 로고 톤다운 */
+.dark .appbar .brand img {
+  filter: brightness(0.9) contrast(0.98) saturate(1);
+  opacity: 0.9;
+}
+
+/* 햄버거 */
+.hamburger {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  gap: 5px;
+  cursor: pointer;
+  padding: 11px; /* 터치 영역 확대 */
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+.hamburger span {
+  height: 3px;
+  width: 100%;
+  background: var(--point);
+  border-radius: 3px;
+  box-shadow: 0 0 0 1px var(--point) inset;
+  transition: transform 0.2s ease;
+}
+.hamburger:active span {
+  transform: scale(0.95);
+}
+
+/* ===== Content ================================================= */
+.content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px 16px;
+}
+
+/* 버튼 */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--card);
+  color: var(--text);
+  cursor: pointer;
+  text-decoration: none;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+  -webkit-tap-highlight-color: transparent; /* 모바일 탭 하이라이트 제거 */
+  touch-action: manipulation; /* 더블탭 줌 방지 */
+  user-select: none; /* 텍스트 선택 방지 */
+}
+.btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+}
+.btn:active {
+  transform: scale(0.96);
+  opacity: 0.9;
+} /* 눌림 피드백 */
+.btn:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+} /* 포커스 표시 */
+.btn.primary {
+  border-color: var(--accent);
+  font-weight: 800;
+}
+.btn.cta {
+  height: 48px;
+  border-width: 2px;
+  border-color: var(--accent);
+  font-weight: 800;
+  border-radius: 14px;
+}
+.btn.danger {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+.btn.small {
+  height: 36px;
+  padding: 0 10px;
+  border-radius: 10px;
+}
+
+/* 입력 필드 */
+input:not([type="checkbox"]):not([type="radio"]),
+textarea {
+  border: 1px solid rgba(107, 183, 217, 0.3);
+  background: var(--card);
+  color: var(--text);
+  border-radius: 10px;
+  padding: 12px 14px; /* 모바일에서 더 큰 터치 영역 */
+  font-size: 16px; /* iOS 줌 방지 */
+  appearance: none; /* 기본 스타일 제거 */
+  -webkit-appearance: none; /* iOS 기본 스타일 제거 */
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* 입력 포커스 강조 */
+input:focus,
+textarea:focus {
+  border-color: var(--accent);
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(107, 183, 217, 0.25);
+  transition: box-shadow 0.2s ease;
+}
+
+/* 체크박스 스타일 */
+input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  margin-right: 8px;
+  accent-color: var(--accent);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  position: relative;
+  z-index: 1;
+}
+
+input[type="checkbox"]:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* 라벨 스타일 */
+label {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  padding: 4px 0;
+}
+
+/* 체크박스 라벨 호버 효과 */
+label:hover {
+  color: var(--accent);
+}
+
+/* 카드/영역 */
+.list {
+  display: grid;
+  gap: 12px;
+}
+.pill {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--card);
+  padding: 12px;
+  animation: fadeUp 0.35s ease both;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.subtitle {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+.hero {
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--card);
+  padding: 14px;
+  display: grid;
+  gap: 8px;
+  animation: fadeUp 0.35s ease both;
+}
+.hero .row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.greet {
+  font-weight: 800;
+}
+.date {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.chip {
+  font-size: 0.85rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 6px 10px;
+  background: var(--card);
+  color: var(--text);
+}
+
+/* ===== Splash ================================================== */
+.splash {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(100dvh - 120px);
+  gap: 14px;
+}
+.splash .brand-hero {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  align-items: center;
+  justify-items: center;
+  max-width: 560px;
+  width: 100%;
+}
+.splash .brand-hero img {
+  width: 100%;
+  max-width: 260px;
+  height: auto;
+  border-radius: 12px;
+  object-fit: cover;
+  border: 1px solid var(--line);
+}
+.splash .logo-fallback {
+  width: min(66%, 360px);
+  max-width: 420px;
+  height: auto;
+  display: block;
+}
+.splash .cta-wrap {
+  margin-top: 8px;
+}
+
+@media (min-width: 540px) {
+  .app {
+    max-width: 540px;
+    margin: 0 auto;
+  }
+}
+
+/* ===== Calendar ================================================ */
+.calendar {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 8px;
+  margin-top: 8px;
+}
+.cell {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--card);
+  color: var(--text);
+  padding: 10px;
+  min-height: 62px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  text-decoration: none;
+  transition: transform 0.18s ease;
+}
+.cell:hover {
+  transform: translateY(-1px);
+}
+.cell.head {
+  font-weight: 800;
+  justify-content: center;
+  align-items: center;
+  min-height: auto;
+}
+.cell.day {
+  position: relative;
+}
+.cell.day:not(.in) {
+  opacity: 0.45;
+}
+.cell.day.today {
+  box-shadow: 0 0 0 2px var(--accent) inset;
+  border-color: var(--accent);
+}
+.cell.day.sel {
+  outline: 2px dashed var(--accent);
+  outline-offset: 2px;
+}
+.dnum {
+  font-weight: 900;
+}
+.badge {
+  position: absolute;
+  right: 8px;
+  top: 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 0.75rem;
+  line-height: 1;
+  background: var(--card);
+  color: var(--text);
+}
+
+/* ===== Modal =================================================== */
+.modal-ovl {
+  position: fixed;
+  inset: 0;
+  display: none;
+  z-index: 70;
+  background: rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(6px);
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+.modal-ovl.open {
+  display: block;
+  opacity: 1;
+}
+
+.modal {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(92%, 560px);
+  max-height: 80vh;
+  overflow: auto;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 14px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 28);
+  -webkit-overflow-scrolling: touch; /* iOS 모달 내부 스크롤 부드럽게 */
+  overscroll-behavior: contain; /* 모달 내부에서만 스크롤 */
+  scroll-behavior: smooth; /* 부드러운 스크롤 */
+}
+
+/* 등장 애니메이션 */
+.modal-ovl.open .modal {
+  animation: modalPop 0.25s ease;
+}
+@keyframes modalPop {
+  from {
+    transform: translate(-50%, -50%) scale(0.95);
+    opacity: 0;
+  }
+  to {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+  }
+}
+
+.modal-title {
+  font-weight: 900;
+  margin-bottom: 8px;
+}
+
+/* 미리보기 */
+.preview-wrap {
+  position: relative;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 10px;
+  margin-bottom: 10px;
+  background: #e9ecef;
+  min-height: 130px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  transition: all 0.2s ease; /* 부드러운 전환 효과 */
+  overflow: hidden; /* 내용이 넘치지 않도록 */
+  cursor: pointer; /* 클릭 가능함을 표시 */
+}
+.preview-wrap:hover {
+  border-color: var(--accent);
+  background: rgba(107, 183, 217, 0.05);
+}
+.dark .preview-wrap {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.preview-wrap .preview-label {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  margin: 0;
+  color: #9ca3af;
+  font-weight: 600;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+  font-size: clamp(13px, 4vw, 16px);
+  text-align: center;
+}
+
+/* 체크박스가 있는 라벨은 pointer-events 허용 */
+label input[type="checkbox"] {
+  pointer-events: auto;
+}
+.preview-wrap.is-filled .preview-label {
+  opacity: 0;
+}
+.preview-wrap.loading .preview-label {
+  opacity: 0.5;
+}
+
+#cmpr-img {
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  border-radius: 10px;
+  display: none;
+  object-fit: contain; /* 이미지 비율 유지 */
+  max-height: 200px; /* 최대 높이 제한 */
+}
+#cmpr-text {
+  margin-top: 8px;
+  white-space: pre-wrap;
+  display: none;
+  font-size: 1rem;
+  line-height: 1.5;
+  text-align: center;
+  word-break: break-word; /* 긴 텍스트 줄바꿈 */
+  max-width: 100%;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 10px;
+  position: sticky;
+  bottom: 0;
+  background: var(--card);
+  padding-top: 10px;
+}
+@supports (-webkit-touch-callout: none) {
+  .modal-actions {
+    padding-bottom: env(safe-area-inset-bottom, 10px);
+  }
+}
+
+/* ===== Slide Menu ============================================== */
+.menu {
+  position: fixed;
+  inset: 0;
+  display: none;
+  background: rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(8px);
+  z-index: 1200;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+.menu.open {
+  display: block;
+  opacity: 1;
+}
+
+.menu .panel {
+  position: absolute;
+  right: 0;
+  top: 0;
+  height: 100%;
+  width: min(80vw, 400px); /* 모바일 여백을 확보 */
+  background: var(--card);
+  border-left: 1px solid var(--line);
+  box-shadow: -10px 0 24px rgba(0, 0, 0, 0.18);
+  transform: translateX(100%);
+  transition: transform 0.25s ease, opacity 0.25s ease;
+  opacity: 0.6;
+  display: flex;
+  flex-direction: column;
+}
+.menu.open .panel {
+  transform: translateX(0);
+  opacity: 1;
+}
+
+/* 패널 상단 헤더(타이틀 + 닫기) */
+.menu .panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--line);
+  background: var(--card);
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+.menu .panel-header h2 {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--text);
+  margin: 0;
+}
+.menu .close-btn {
+  background: none;
+  border: none;
+  color: var(--text);
+  font-size: 26px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 8px 12px;
+  border-radius: 10px;
+  line-height: 1;
+  transition: background 0.2s ease, opacity 0.2s ease;
+}
+.menu .close-btn:hover {
+  background: rgba(107, 183, 217, 0.08);
+  opacity: 0.8;
+}
+
+/* 메뉴 링크 목록 */
+.menu .links {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  overflow-y: auto;
+}
+.menu .links a {
+  display: block;
+  text-align: center;
+  padding: 12px 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--card);
+  color: var(--text);
+  text-decoration: none;
+}
+
+/* ===== Footer =================================================== */
+.footer {
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 0.8rem;
+  padding: 0 8px;
+}
+.footer a {
+  color: var(--muted);
+  text-decoration: none;
+}
+
+/* ===== Common =================================================== */
+.grid2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+@media (max-width: 520px) {
+  .grid2 {
+    grid-template-columns: 1fr;
+  }
+}
+
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 모바일 터치 피드백 애니메이션 */
+@keyframes touchFeedback {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(0.95);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* 터치 피드백 클래스 */
+.touch-feedback {
+  animation: touchFeedback 0.15s ease;
+}
+
+/* 로딩 애니메이션 */
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* 성공 피드백 */
+@keyframes successBounce {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* ===== 고객센터 ================================================= */
+.pill.note {
+  border-style: solid;
+  background: var(--card);
+}
+.badge.inline {
+  position: static;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 4px 8px;
+  font-size: 0.75rem;
+}
+.klist {
+  display: grid;
+  gap: 10px;
+}
+.kitem {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--card);
+  padding: 4px;
+}
+.kitem h4 {
+  margin: 0;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  padding: 10px 8px;
+  -webkit-tap-highlight-color: transparent;
+}
+.kitem .ans {
+  display: none;
+  margin: 8px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+.tag {
+  font-size: 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 2px 6px;
+  margin-right: 6px;
+}
+.kv {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.kv .pill {
+  min-width: 180px;
+}
+
+/* ===== Toast ==================================================== */
+.toast {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+  z-index: 80;
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--text);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  display: none;
+  max-width: min(92vw, 520px);
+  font-weight: 500;
+  animation: fadeUp 0.3s ease;
+}
+.toast.show {
+  display: block;
+}
+.toast.success {
+  background: var(--green);
+  color: white;
+  border-color: var(--green);
+}
+.toast.error {
+  background: var(--danger);
+  color: white;
+  border-color: var(--danger);
+}
+.toast.info {
+  background: var(--point);
+  color: white;
+  border-color: var(--point);
+}
+/**/
+
+/* === 메뉴 패널 폭을 모바일에 맞게 더 좁게 === */
+.menu .panel {
+  width: clamp(280px, 82vw, 360px); /* 기존 80vw,400px → 더 슬림하게 */
+}
+
+/* === 패널 헤더: X만 사용(오른쪽 정렬), 타이틀 없으면 중앙 여백 제거 === */
+.menu .panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end; /* X를 오른쪽으로 */
+  padding: 14px 14px;
+  border-bottom: 1px solid var(--line);
+  background: var(--card);
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+/* 하단 '닫기' 버튼(있다면) 감추기 */
+.menu .links .btn-close,
+.menu .links .close,
+.menu .links a[data-role="close"] {
+  display: none !important;
+}
+
+/* 링크 버튼 좌우 여백 조금 줄여서 덜 답답하게 */
+.menu .links {
+  padding: 12px 14px;
+  gap: 12px;
+}
+
+/* X 아이콘 터치 영역 확대 */
+.menu .close-btn {
+  padding: 10px 14px; /* 터치 44px 규칙에 근접 */
+  font-size: 26px;
+  border-radius: 12px;
+}
+.menu .close-btn:hover {
+  background: rgba(107, 183, 217, 0.08);
+  opacity: 0.9;
+}
+
+/* ============================================================
+   UX 패치 세트 (표의 7가지 개선 사항 반영 · 오버라이드)
+   ============================================================ */
+
+/* 1) 모달: 배경이 살짝 보이게 + 슬라이드 업 등장 */
+.modal-ovl {
+  background: rgba(0, 0, 0, 0.2) !important; /* 기존 .35 → .20 */
+}
+.modal {
+  will-change: transform, opacity;
+}
+.modal-ovl.open .modal {
+  animation: modalSlideUp 0.24s ease var(--modal-delay, 0ms) both;
+}
+@keyframes modalSlideUp {
+  from {
+    transform: translate(-50%, -44%) scale(0.985);
+    opacity: 0;
+  }
+  to {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+  }
+}
+
+/* 2) 메뉴 헤더: sticky 고정 (내용만 스크롤) */
+.menu .panel {
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden;
+}
+.menu .panel-header {
+  position: sticky !important;
+  top: 0;
+  z-index: 2;
+  background: var(--card);
+  border-bottom: 1px solid var(--line);
+}
+.menu .links {
+  flex: 1 1 auto;
+  overflow: auto;
+}
+
+/* 3) 텍스트 대비 살짝 진하게 (라이트/다크 각각) */
+:root {
+  --text: rgba(107, 183, 217, 0.95);
+}
+body.dark {
+  --text: rgba(107, 183, 217, 0.75);
+}
+
+/* 4) 입력창: 기본 윤곽 추가 + 포커스 강조 유지 */
+input,
+textarea {
+  border: 1px solid rgba(107, 183, 217, 0.3);
+  background: var(--card);
+  color: var(--text);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+input:focus,
+textarea:focus {
+  border-color: var(--accent);
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(107, 183, 217, 0.25);
+}
+
+/* 5) 페이지 전환: fade-out 애니메이션 */
+body.fadeout {
+  opacity: 0;
+  transition: opacity 0.22s ease;
+}
+
+/* 6) 메뉴 패널 폭(살짝 슬림) – 모바일 공간감 */
+.menu .panel {
+  width: clamp(280px, 82vw, 360px);
+}
+
+/* 7) 토스트: 긴 문장 대응 – max-width 유지, 폰트 약간 키움 */
+.toast {
+  max-width: min(92vw, 560px);
+  font-size: 0.95rem;
+}
+/* ============================================================
+   📱 Mobile patches: Calendar badge & Support layout
+   붙이는 위치: 파일 맨 아래
+   ============================================================ */
+
+/* 1) 달력: 숫자/배지 겹침 방지 (배지를 오른쪽-아래 고정) */
+@media (max-width: 520px) {
+  .calendar {
+    gap: 6px;
+  }
+  .cell {
+    min-height: 54px;
+    padding: 8px 10px;
+  }
+  .cell.day {
+    padding: 8px 10px;
+  }
+  .cell.day .dnum {
+    font-size: 1rem;
+    line-height: 1;
+    margin-bottom: auto;
+  }
+  .cell.day .badge {
+    position: absolute;
+    right: 6px;
+    bottom: 6px; /* ⬅️ 아래쪽 고정 */
+    top: auto; /* 기존 top:8px 무효화 */
+    font-size: 0.7rem;
+    padding: 2px 6px;
+  }
+}
+/* 초소형 기기 보정 */
+@media (max-width: 360px) {
+  .cell {
+    min-height: 50px;
+  }
+  .cell.day .badge {
+    font-size: 0.65rem;
+    padding: 2px 5px;
+    right: 5px;
+    bottom: 5px;
+  }
+}
+
+/* 2) 고객센터: 카드/티켓 한 줄 정렬 깨짐 방지 & 간격 정리 */
+@media (max-width: 520px) {
+  /* 상태 카드 묶음은 세로 스택 */
+  .kv {
+    display: grid !important;
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  .kv .pill {
+    min-width: 0 !important; /* 기존 180px 강제 해제 */
+    width: 100% !important;
+  }
+
+  /* 티켓 리스트 카드화 & 정렬 통일 */
+  .tickets {
+    display: grid;
+    gap: 8px;
+  }
+  .tickets .ticket {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 10px;
+    background: var(--card);
+  }
+  .tickets .ticket .left {
+    flex: 1;
+  }
+  .tickets .ticket .ttl {
+    font-weight: 800;
+    margin-bottom: 4px;
+  }
+  .tickets .ticket .meta {
+    color: var(--muted);
+    font-size: 0.85rem;
+  }
+
+  /* 상태 뱃지 우측 정렬 & 터치 크기 보장 */
+  .tickets .ticket .right .status {
+    display: inline-flex;
+    align-items: center;
+    height: 28px;
+    padding: 0 10px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    font-size: 0.8rem;
+    white-space: nowrap;
+  }
+}
+/* ============================================================
+   ADMIN – mobile tidy (cards, forms, buttons)
+   ============================================================ */
+
+/* 공통 폼 컨트롤 크기 통일 */
+.admin-wrap input.btn,
+.admin-wrap select.btn,
+.admin-wrap button.btn,
+.admin-wrap a.btn {
+  height: 40px;
+  padding: 0 12px;
+  border-radius: 10px;
+}
+
+/* 검색 바: 한 줄 정렬 → 모바일은 2줄 스택 */
+.admin-wrap .pill form[method="get"] {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 6px;
+}
+@media (max-width: 520px) {
+  .admin-wrap .pill form[method="get"] {
+    grid-template-columns: 1fr 1fr;
+  }
+  .admin-wrap .pill form[method="get"] .btn[href*="초기화"],
+  .admin-wrap .pill form[method="get"] a.btn {
+    grid-column: 1 / -1; /* 아래 전폭 버튼 */
+    justify-self: start;
+  }
+}
+
+/* 사용자 카드 레이아웃 */
+.admin-wrap .u-card {
+  display: grid;
+  grid-template-columns: 1fr auto; /* 정보 / 액션 */
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--card);
+}
+
+.admin-wrap .u-left {
+  min-width: 0;
+}
+.admin-wrap .u-ident {
+  display: grid;
+  grid-template-columns: 32px 1fr;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.admin-wrap .u-avatar {
+  font-size: 20px;
+}
+.admin-wrap .u-email {
+  font-weight: 800;
+}
+.admin-wrap .u-meta {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+/* 유저 편집 폼: 2열 그리드 → 모바일 1열 */
+.admin-wrap .u-edit {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.admin-wrap .u-edit .btn,
+.admin-wrap .u-edit select.btn {
+  width: 100%;
+}
+.admin-wrap .u-edit .btn.primary {
+  grid-column: 1 / -1; /* 저장 버튼은 전폭 */
+}
+
+/* 체크박스 정렬 */
+.admin-wrap .u-edit label.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 40px;
+  padding: 0 12px;
+}
+
+/* 우측 액션 버튼 묶음 */
+.admin-wrap .u-actions {
+  display: grid;
+  gap: 8px;
+  align-content: start;
+}
+.admin-wrap .u-actions .btn {
+  height: 36px;
+  padding: 0 10px;
+}
+
+/* 모바일: 카드 세로 스택 + 액션 버튼 가로 스크롤 없이 2~3개씩 */
+@media (max-width: 520px) {
+  .admin-wrap .u-card {
+    grid-template-columns: 1fr; /* 한 칼럼 */
+  }
+  .admin-wrap .u-actions {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+  }
+  .admin-wrap .u-actions .btn {
+    width: 100%;
+  }
+}
+
+/* 섹션 타이틀 카드(“사용자 관리” 등) 간격/테두리 톤 다운 */
+.admin-wrap > .pill {
+  border-color: rgba(107, 183, 217, 0.35);
+}
+/* ============================================================
+   관리자 카드 간격 강제 보정 (실제 구조에 관계없이 적용)
+   ============================================================ */
+
+/* .admin-wrap이 없어도, 모든 .pill 요소 사이 띄우기 */
+.pill:not(:last-child) {
+  margin-bottom: 10px !important;
+}
+
+/* 카드 간 상단 겹침 방지 */
+.pill + .pill {
+  margin-top: 10px !important;
+}
+
+/* 관리자 카드 안쪽 요소끼리 붙는 경우 대비 */
+.pill > *:not(:last-child) {
+  margin-bottom: 8px;
+}
+
+/* 카드 테두리 구분이 약하면 그림자 살짝 추가 */
+.pill {
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+}
+/* =========================================================
+   🔧 Mobile fixes (calendar badge, support tidy, admin gaps)
+   ========================================================= */
+
+/* 1) 달력: 숫자/배지 겹침 확실히 분리 + 우하단 고정 */
+@media (max-width: 520px) {
+  .calendar {
+    gap: 6px;
+  }
+  .cell {
+    min-height: 54px;
+    padding: 8px 10px;
+  }
+  .cell.day {
+    padding: 8px 10px;
+  }
+  .cell.day .dnum {
+    font-size: 1rem;
+    line-height: 1;
+    margin-bottom: auto;
+    position: relative;
+    z-index: 1; /* 숫자를 배지 아래에 깔리지 않게 */
+  }
+  .cell.day .badge {
+    position: absolute;
+    inset: auto 6px 6px auto; /* right:6px; bottom:6px */
+    top: auto !important; /* 기존 top 우선권 제거 */
+    font-size: 0.7rem;
+    padding: 2px 6px;
+    background: var(--card); /* 배경 깔아서 읽기 선명 */
+    box-shadow: 0 0 0 1px var(--line) inset; /* 테두리 또렷 */
+    z-index: 2;
+  }
+}
+/* 초소형 */
+@media (max-width: 360px) {
+  .cell {
+    min-height: 50px;
+  }
+  .cell.day .badge {
+    font-size: 0.65rem;
+    padding: 2px 5px;
+    inset: auto 5px 5px auto;
+  }
+}
+
+/* 2) 고객센터: 상태 카드와 티켓 레이아웃 정리 */
+@media (max-width: 520px) {
+  /* 상태 카드 묶음은 세로 스택 */
+  .kv {
+    display: grid !important;
+    grid-template-columns: 1fr;
+    gap: 8px !important;
+  }
+  .kv .pill {
+    min-width: 0 !important;
+    width: 100% !important;
+    margin: 0 !important;
+  }
+
+  /* 티켓 리스트를 ‘카드’로 통일 */
+  .tickets {
+    display: grid;
+    gap: 8px;
+  }
+  .tickets .ticket {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 10px;
+    background: var(--card);
+  }
+  .tickets .ticket .left {
+    flex: 1;
+    min-width: 0;
+  }
+  .tickets .ticket .ttl {
+    font-weight: 800;
+    margin-bottom: 4px;
+  }
+  .tickets .ticket .meta {
+    color: var(--muted);
+    font-size: 0.86rem;
+  }
+
+  .tickets .ticket .right .status {
+    display: inline-flex;
+    align-items: center;
+    height: 28px;
+    padding: 0 10px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    font-size: 0.8rem;
+    white-space: nowrap;
+  }
+}
+
+/* 3) 관리자: 카드들이 서로 ‘붙는’ 현상 해결(간격 컨테이너 지정) */
+.admin-users {
+  display: grid;
+  gap: 12px; /* ← 없어서 카드가 붙어 보였음 */
+}
+
+/* 관리자 개별 카드 여백·내부 간격 보정 */
+.admin-wrap .u-card {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--card);
+}
+
+@media (max-width: 520px) {
+  .admin-wrap .u-card {
+    grid-template-columns: 1fr;
+  }
+  .admin-wrap .u-actions {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+  }
+}
+
+/* 카드 사이 추가 안전 마진 (기존 구조 상관없이 강제) */
+.admin-users > * + * {
+  margin-top: 0 !important;
+} /* grid gap만 사용 */
+.pill + .pill {
+  margin-top: 10px;
+}
+
+/* 카드 내부 요소가 서로 달라붙는 경우 대비 */
+.pill > *:not(:last-child) {
+  margin-bottom: 8px;
+}
+/* 미리보기: 이미지 위, 글자 아래 가로정렬 */
+.preview-wrap {
+  display: flex;
+  flex-direction: column; /* ← 핵심 */
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+#cmpr-img {
+  display: none;
+  max-width: 100%;
+  height: auto;
+  margin-bottom: 8px;
+}
+#cmpr-text {
+  display: none;
+  font-size: 1rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+#feed-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+#feed-list li {
+  border-bottom: 1px solid #ddd;
+  padding: 10px;
+}
+#feed-list img {
+  max-width: 100%;
+  border-radius: 8px;
+  margin-top: 6px;
+}
+#feed-page {
+  display: block;
+  padding: 20px;
+}
+
+#feed-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+#feed-list .feed-empty {
+  padding: 40px;
+  text-align: center;
+  color: #888;
+  font-size: 16px;
+}
+#feed-page {
+  display: block;
+  padding: 16px;
+  max-width: 560px;
+  margin: 0 auto;
+}
+
+#feed-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+#feed-list .feed-empty {
+  padding: 32px;
+  text-align: center;
+  color: #999;
+}
+
+#feed-list .memo {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+  margin-bottom: 20px;
+  overflow: hidden;
+}
+
+#feed-list .memo-img {
+  width: 100%;
+  display: block;
+}
+
+#feed-list .memo-text {
+  padding: 10px 16px;
+  font-size: 15px;
+  color: #333;
+}
+/* === FEED 이미지 폭 통일 (최종 오버라이드) === */
+#feed-page {
+  max-width: 560px !important;
+  margin: 0 auto !important;
+  padding: 16px !important;
+}
+@media (min-width: 768px) {
+  #feed-page {
+    max-width: 680px !important;
+  }
+}
+
+/* <img>로 렌더링할 때(양쪽 구조 모두) */
+#feed-list img,
+#feed-list .memo-img,
+#feed-list .feed-card .img-wrap img {
+  display: block !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  height: auto !important;
+  border-radius: 8px;
+}
+
+/* background-image로 쓸 경우 대비(있다면) */
+#feed-list .photo,
+#feed-list .feed-photo {
+  width: 100% !important;
+  aspect-ratio: 4/3;
+  background-size: cover;
+  background-position: center;
+  border-radius: 8px;
+}
+
+/* .feed-card 구조도 폭 제한이 먹도록 래퍼 보정 */
+#feed-list .feed-card .img-wrap {
+  width: 100%;
+}

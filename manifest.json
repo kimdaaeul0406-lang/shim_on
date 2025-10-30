@@ -1,0 +1,28 @@
+{
+  "name": "쉼on",
+  "short_name": "쉼on",
+  "description": "마음 쉬는 시간, 나를 위한 알림",
+  "start_url": "/shim-on/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#6BB7D9",
+  "orientation": "portrait",
+  "scope": "/shim-on/",
+  "icons": [
+    {
+      "src": "/shim-on/logo-mark.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/shim-on/logo-word.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["productivity", "lifestyle"],
+  "lang": "ko",
+  "dir": "ltr"
+}
