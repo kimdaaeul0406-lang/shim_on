@@ -84,3 +84,12 @@ self.addEventListener("notificationclick", (event) => {
     event.waitUntil(clients.openWindow("/shim-on/"));
   }
 });
+self.addEventListener("fetch", (event) => {
+  const url = new URL(event.request.url);
+
+  // ✅ API는 네트워크로 바로 보내고, respondWith 안 건다
+  if (url.pathname.includes("/api/")) return;
+
+  // 나머지 정적 리소스는 기존 캐시 전략...
+  // event.respondWith( ... );
+});
