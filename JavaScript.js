@@ -838,45 +838,25 @@ $(document).on("submit", "#memo-form", async function (e) {
         await shareMemo({
           text,
           photoUrl,
-          author: window.SHIM?.currentUser || "guest",
+          author: window.SHIM?.currentUserId || "guest",
         });
         showToast("공유 완료!", "success");
-        const memos = JSON.parse(localStorage.getItem("memos") || "[]");
-        memos.push({
-          id: "m_" + Date.now(),
-          text,
-          image: photoUrl,
-          public: true,
-          userId: window.SHIM?.currentUser || "guest",
-          date: new Date().toISOString(),
-          feed_id: FEED_ID,
-        });
-        localStorage.setItem("memos", JSON.stringify(memos));
+        // localStorage update removed as we reload or submit form
 
-        // 입력/미리보기 초기화
-        $("#memo-text").val("");
-        $("#memo-author").val("");
-        $("#memo-photo-url").val("");
-        $("#photo").val("");
-        $("#cmpr-img").attr("src", "").hide();
-
-        // 피드 이동 또는 새로고침
+        // 피드 페이지라면 새로고침을 위해 폼 제출을 막고 로드
         if (location.search.includes("page=feed")) {
-          await loadFeed(); // 이미 피드면 새로 그리기
-          renderFeed(items);
-          showToast("피드가 업데이트되었습니다!", "success");
-        } else {
-          location.href = "./index.php?page=feed"; // 상대경로
+          await loadFeed();
         }
-        submitting = false;
-        $saveBtn.prop("disabled", false).removeClass("disabled").text("저장");
-        return false;
+
+        // ★ 공유 후에도 '내 피드(DB)'에 저장하기 위해 아래 로직(②)으로 진행!
+        // 여기서 return false 하지 않고 fall-through
+
+
+        // 입력/미리보기 초기화는 폼 제출 시 자동으로 됨
       } catch (err) {
         console.error("공유 실패:", err);
         showToast("공유 실패: " + err.message, "error");
-        submitting = false;
-        $saveBtn.prop("disabled", false).removeClass("disabled").text("저장");
-        return false;
+        // 공유 실패해도 내 피드에는 저장할지 여부? 일단 진행
       }
     }
 
@@ -967,7 +947,7 @@ function renderFeed(items) {
         "ko-KR"
       )}</span>
           ${isOwner
-        ? `<button class="del" data-id="${it.id}">삭제</button>`
+        ? `<button class="del btn danger small" style="min-width:50px;font-size:13px;padding:4px 10px" data-id="${it.id}">삭제</button>`
         : ""
       }
         </div>

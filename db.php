@@ -55,11 +55,17 @@ function db(){
       if (!in_array('sound_on', $cols)) $pdo->exec("ALTER TABLE users ADD COLUMN sound_on TINYINT(1) DEFAULT 1");
       if (!in_array('role', $cols))     $pdo->exec("ALTER TABLE users ADD COLUMN role ENUM('user','admin') DEFAULT 'user'");
       
-      // 3. Check for feeds table (for shared memos)
+      // 3. Check for essential tables
       $tables = $pdo->query("SHOW TABLES")->fetchAll(PDO::FETCH_COLUMN);
-      if (!in_array('feeds', $tables)) {
-           // Missing feeds table, trigger exception to run schema
-           throw new Exception("Feeds table missing");
+      $required_tables = ['records', 'reminders', 'feeds', 'support_tickets', 'app_branding'];
+      $missing = false;
+      foreach ($required_tables as $t) {
+          if (!in_array($t, $tables)) { $missing = true; break; }
+      }
+      
+      if ($missing) {
+           // Missing table(s), trigger exception to run schema
+           throw new Exception("Essential table missing");
       }
       
   } catch (Exception $e) {

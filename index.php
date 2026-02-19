@@ -14,7 +14,7 @@ require_once __DIR__.'/db.php';   // ★ 추가
 function is_logged_in(){ return !empty($_SESSION['user']); }
 function current_user(){ return $_SESSION['user']??null; }
 function is_admin(){ return (current_user()['role']??'user')==='admin'; }
-function guard(){ if(!is_logged_in()){ header('Location:?page=auth'); exit; } }
+function guard(){ if(!is_logged_in()){ header('Location:?page=auth&mode=login'); exit; } }
 function now_k(){ return date('Y-m-d H:i:s'); }
 function today_k(){ return date('Y.m.d (D)'); }
 function today_key(){ return date('Y-m-d'); }
@@ -174,6 +174,7 @@ if(($_POST['action']??'')==='login'){
 if(isset($_GET['logout'])){
   unset($_SESSION['user']);
   $_SESSION['locked']=false;
+  session_destroy();  // ★ 완전히 파괴
   header('Location:?page=auth'); exit;
 }
 
@@ -188,7 +189,7 @@ if(($_POST['action']??'')==='upload'){
   if($text!=='' || $imgPath){
     // DB Insert
     $st = db()->prepare("INSERT INTO records(user_id, date, datetime, text, img) VALUES (?, ?, ?, ?, ?)");
-    $st->execute([$u['id'], today_key(), now_k(), $text, $imgPath]);
+    $st->execute([$u['id'], today_key(), date('Y-m-d H:i:s'), $text, $imgPath]);
   }
   header('Location:?page=main&saved=1'); exit;
 }
@@ -256,10 +257,25 @@ if(($_POST['action']??'')==='settings'){
 if(($_POST['action']??'')==='delete_account'){
   guard();
   $u=current_user();
-  $st = db()->prepare("DELETE FROM users WHERE id=?");
-  $st->execute([$u['id']]);
-  session_destroy();
-  header('Location:?page=welcome'); exit;
+  try {
+      // 1. 연관 데이터 수동 삭제 (FK가 작동 안 할 경우 대비)
+      db()->prepare("DELETE FROM reminders WHERE user_id=?")->execute([$u['id']]);
+      db()->prepare("DELETE FROM records WHERE user_id=?")->execute([$u['id']]);
+      db()->prepare("DELETE FROM support_tickets WHERE user_id=?")->execute([$u['id']]);
+      db()->prepare("DELETE FROM feeds WHERE user_id=?")->execute([$u['id']]); // 공유한 피드도 삭제
+      
+      // 2. 사용자 삭제
+      $st = db()->prepare("DELETE FROM users WHERE id=?");
+      $st->execute([$u['id']]);
+      
+      // 3. 세션 파괴 및 로그아웃
+      unset($_SESSION['user']);
+      session_destroy();
+      header('Location:?page=welcome'); exit;
+  } catch (Exception $e) {
+      $_SESSION['flash_err'] = "탈퇴 처리 중 오류가 발생했습니다: " . $e->getMessage();
+      header('Location:?page=settings&stab=account'); exit;
+  }
 }
 if(($_POST['action']??'')==='lock_settings'){
   guard();
@@ -440,7 +456,10 @@ if(isset($_GET['export']) && is_admin()){
 }
 
 /* ---------- Routing ---------- */
-$page=$_GET['page'] ?? (is_logged_in()?'main':'welcome');
+$page = $_GET['page'] ?? '';
+if ($page === '') {
+    $page = is_logged_in() ? 'main' : 'welcome';
+}
 $mode=$_GET['mode'] ?? null; $stab=$_GET['stab'] ?? null;
 $atab=$_GET['atab'] ?? 'overview';
 $u=current_user();
@@ -491,8 +510,8 @@ if(is_logged_in()){
     loggedIn: <?= json_encode(is_logged_in()) ?>,
     reminders: <?= json_encode($reminders_for_js, JSON_UNESCAPED_UNICODE) ?>,
     timezone: "Asia/Seoul",
-    // ✅ 현재 사용자 식별값(카카오 로그인 우선 → 앱 로그인 이메일 → guest)
-    currentUserId: <?= json_encode(($_SESSION['kakao_id'] ?? ($u['email'] ?? 'guest'))) ?>
+    // ✅ 현재 사용자 식별값(user_id INT) - 피드 삭제 권한 비교용
+    currentUserId: <?= json_encode((int)($u['id'] ?? 0)) ?>
   };
 </script>
 
@@ -1280,7 +1299,7 @@ elseif ($page==='feed'): guard(); ?>
           <a href="?page=main" onclick="document.querySelector('.menu').classList.remove('open')">메인</a>
           <a href="?page=records" onclick="document.querySelector('.menu').classList.remove('open')">전체 기록</a>
           <!-- 메뉴 링크들 사이 어딘가에 추가 -->
-<a href="/shim-on/index.php?page=feed" class="btn">쉼 피드</a>
+          <a href="?page=feed" class="btn" onclick="document.querySelector('.menu').classList.remove('open')">쉼 피드</a>
 
           <a href="?page=reminders" onclick="document.querySelector('.menu').classList.remove('open')">알림 설정</a>
           <a href="?page=settings" onclick="document.querySelector('.menu').classList.remove('open')">설정</a>
