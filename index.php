@@ -492,7 +492,7 @@ if(is_logged_in()){
     reminders: <?= json_encode($reminders_for_js, JSON_UNESCAPED_UNICODE) ?>,
     timezone: "Asia/Seoul",
     // ✅ 현재 사용자 식별값(카카오 로그인 우선 → 앱 로그인 이메일 → guest)
-    currentUserId: <?= json_encode(is_logged_in() ? (string)($u['id']??'guest') : 'guest') ?>
+    currentUserId: <?= json_encode(($_SESSION['kakao_id'] ?? ($u['email'] ?? 'guest'))) ?>
   };
 </script>
 
@@ -737,6 +737,8 @@ if(is_logged_in()){
             <article class="pill">
               <div class="subtitle" style="margin-bottom:6px"><?=htmlspecialchars($r['datetime']??($r['date']??''))?></div>
               <?php if(!empty($r['img'])): ?><img src="<?=htmlspecialchars($r['img'])?>" style="width:100%;border-radius:8px;margin-top:4px" alt="record" onerror="this.style.display='none'"><?php endif; ?>
+              <?php if(!empty($r['text'])): ?><div style="margin-top:8px"><?=nl2br(htmlspecialchars($r['text']))?></div><?php endif; ?>
+              <form method="post" style="margin-top:10px" onsubmit="return confirm('이 기록을 삭제할까요?');">
                 <input type="hidden" name="action" value="del_record"><input type="hidden" name="idx" value="<?=$r['id']?>">
                 <button class="btn danger" type="submit">삭제</button>
               </form>
@@ -744,53 +746,6 @@ if(is_logged_in()){
           <?php endforeach; ?>
         <?php endif; ?>
       </div>
-    </main>
-
-  <?php
-  /* ===== 쉼 피드 (공유 게시판) ===== */
-  elseif($page==='feed'): guard();
-    $u=current_user();
-    $nickname=$u['nickname'] ?? '익명';
-  ?>
-    <main class="content">
-      <div class="pill" style="max-width:600px;margin:0 auto">
-        <div style="font-weight:900;margin-bottom:8px">쉼 피드</div>
-        <div class="subtitle">서로의 쉼을 응원하고 공유하는 공간입니다.</div>
-        
-        <div style="margin-top:16px;display:grid;gap:8px">
-          <textarea id="memo-text" class="btn" style="width:100%;height:100px;padding:12px;text-align:left" placeholder="오늘 어떤 쉼이 있었나요?"></textarea>
-          
-          <div style="display:flex;gap:8px;flex-wrap:wrap">
-             <input type="text" id="memo-author" class="btn" style="flex:1;min-width:120px" placeholder="작성자(선택)" value="<?=htmlspecialchars($nickname)?>">
-             <!-- 파일 선택 커스텀 -->
-             <label class="btn" style="width:auto;cursor:pointer">
-               📷 사진
-               <input type="file" id="photo" style="display:none" accept="image/*">
-             </label>
-             <input type="hidden" id="memo-photo-url">
-          </div>
-          <div class="subtitle" id="file-name-display" style="font-size:12px;color:var(--primary);display:none"></div>
-
-          <button id="share-btn" class="btn primary" style="margin-top:4px">공유하기</button>
-        </div>
-      </div>
-
-      <ul id="feed-list" class="list" style="max-width:600px;margin:16px auto 0;display:grid;gap:12px">
-         <!-- JS가 렌더링 -->
-         <li class="pill" style="text-align:center;padding:20px">피드 불러오는 중...</li>
-      </ul>
-      
-      <script>
-        // 파일 선택 시 이름 표시 & 업로드
-        document.getElementById('photo').addEventListener('change', function(e){
-          if(e.target.files[0]) {
-             document.getElementById('file-name-display').style.display='block';
-             document.getElementById('file-name-display').innerText = '사진 선택됨: ' + e.target.files[0].name;
-          }
-        });
-        // 페이지 로드 시 피드 로딩 호출 (JS에서 수행하지만 안전장치)
-        if(window.loadFeed) window.loadFeed();
-      </script>
     </main>
 <?php
 /* ===== FEED ===== */
@@ -1324,7 +1279,8 @@ elseif ($page==='feed'): guard(); ?>
         <?php if(is_logged_in()): ?>
           <a href="?page=main" onclick="document.querySelector('.menu').classList.remove('open')">메인</a>
           <a href="?page=records" onclick="document.querySelector('.menu').classList.remove('open')">전체 기록</a>
-          <a href="?page=feed" onclick="document.querySelector('.menu').classList.remove('open')">쉼 피드</a>
+          <!-- 메뉴 링크들 사이 어딘가에 추가 -->
+<a href="/shim-on/index.php?page=feed" class="btn">쉼 피드</a>
 
           <a href="?page=reminders" onclick="document.querySelector('.menu').classList.remove('open')">알림 설정</a>
           <a href="?page=settings" onclick="document.querySelector('.menu').classList.remove('open')">설정</a>
