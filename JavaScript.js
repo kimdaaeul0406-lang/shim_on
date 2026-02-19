@@ -80,7 +80,7 @@ $(function () {
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
       navigator.serviceWorker
-        .register("/shim-on/sw.js")
+        .register("./sw.js")
         .then((registration) => {
           console.log("SW registered: ", registration);
         })
@@ -182,7 +182,8 @@ $(function () {
   // 메인 페이지에서만 힌트 표시
   if (
     window.location.search.includes("page=main") ||
-    window.location.pathname.endsWith("/shim-on/")
+    window.location.pathname.endsWith("/index.php") ||
+    window.location.pathname === "/"
   ) {
     showNotificationHint();
   }
@@ -512,7 +513,7 @@ $(function () {
         gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.0);
         osc.start();
         osc.stop(ctx.currentTime + 1.05);
-      } catch (e) {}
+      } catch (e) { }
     };
 
     const ring = (label, time) => {
@@ -523,8 +524,8 @@ $(function () {
       if ("Notification" in window && Notification.permission === "granted") {
         const notification = new Notification("쉼on 알림", {
           body: `${label} · ${time}`,
-          icon: "/shim-on/logo-mark.png",
-          badge: "/shim-on/logo-mark.png",
+          icon: "./logo-mark.png",
+          badge: "./logo-mark.png",
           vibrate: [200, 100, 200],
           requireInteraction: true,
           tag: "shim-on-reminder",
@@ -734,22 +735,20 @@ $(function () {
         return `
     <article class="feed-card">
       <div class="img-wrap">
-        ${
-          m.image
+        ${m.image
             ? `<img src="${m.image}" alt="shared photo" loading="lazy" onerror="console.error('이미지 로드 실패:', this.src)">`
             : `<div style="padding:20px;text-align:center;color:var(--muted)">이미지 없음</div>`
-        }
+          }
       </div>
-      ${
-        m.text
-          ? `<p class="text">${(m.text || "").replace(/\n/g, "<br>")}</p>`
-          : ``
-      }
+      ${m.text
+            ? `<p class="text">${(m.text || "").replace(/\n/g, "<br>")}</p>`
+            : ``
+          }
       <div class="meta">
         <span class="user">Shared by: ${m.userId}</span>
         <span class="date">${new Date(m.date || Date.now()).toLocaleString(
-          "ko-KR"
-        )}</span>
+            "ko-KR"
+          )}</span>
         <span class="tag chip">공유됨</span>
       </div>
     </article>
@@ -867,7 +866,7 @@ $(document).on("submit", "#memo-form", async function (e) {
           renderFeed(items);
           showToast("피드가 업데이트되었습니다!", "success");
         } else {
-          location.href = "/shim-on/index.php?page=feed"; // 절대경로! (슬래시 1개)
+          location.href = "./index.php?page=feed"; // 상대경로
         }
         submitting = false;
         $saveBtn.prop("disabled", false).removeClass("disabled").text("저장");
@@ -915,8 +914,8 @@ if (memoForm) {
 }
 /** ====== 환경설정 ====== */
 const FEED_ID = "shimfeed-global-1";
-const API_MEMO = "/shim-on/api/memos.php";
-const API_UPLD = "/shim-on/api/upload.php";
+const API_MEMO = "./api/memos.php";
+const API_UPLD = "./api/upload.php";
 
 /** ====== 유틸 ====== */
 function escapeHtml(s) {
@@ -957,22 +956,20 @@ function renderFeed(items) {
     const isOwner = String(it.user_id || "guest") === me; // ✅ 내가 쓴 글인가?
     const li = $(`
       <li class="memo">
-        ${
-          it.photo_url
-            ? `<img src="${it.photo_url}" alt="" class="memo-img" />`
-            : ""
-        }
+        ${it.photo_url
+        ? `<img src="${it.photo_url}" alt="" class="memo-img" />`
+        : ""
+      }
         ${it.text ? `<p class="memo-text">${escapeHtml(it.text)}</p>` : ""}
         <div class="memo-meta">
           <span class="author">${escapeHtml(it.author || "익명")}</span>
           <span class="date">${new Date(it.created_at).toLocaleString(
-            "ko-KR"
-          )}</span>
-          ${
-            isOwner
-              ? `<button class="del" data-id="${it.id}">삭제</button>`
-              : ""
-          }
+        "ko-KR"
+      )}</span>
+          ${isOwner
+        ? `<button class="del" data-id="${it.id}">삭제</button>`
+        : ""
+      }
         </div>
       </li>
     `);
@@ -1009,7 +1006,7 @@ async function shareMemo({ text, photoUrl, author }) {
 async function uploadFile(file) {
   const fd = new FormData();
   fd.append("file", file, file.name);
-  const res = await fetch("/shim-on/api/upload.php", {
+  const res = await fetch("./api/upload.php", {
     method: "POST",
     body: fd,
   });

@@ -1,12 +1,12 @@
 // Service Worker for 쉼on
 const CACHE_NAME = "shim-on-v2";
 const urlsToCache = [
-  "/shim-on/",
-  "/shim-on/index.php",
-  "/shim-on/style.css",
-  "/shim-on/JavaScript.js",
-  "/shim-on/logo-mark.png",
-  "/shim-on/logo-word.png",
+  "./",
+  "./index.php",
+  "./style.css",
+  "./JavaScript.js",
+  "./logo-mark.png",
+  "./logo-word.png",
 ];
 
 // Install event
@@ -22,7 +22,7 @@ self.addEventListener("install", (event) => {
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
   // 1) API 요청은 캐시를 거치지 않고 항상 네트워크로
-  if (url.pathname.startsWith("/shim-on/api/")) {
+  if (url.pathname.includes("/api/")) {
     event.respondWith(fetch(event.request));
     return;
   }
@@ -51,8 +51,8 @@ function doBackgroundSync() {
 self.addEventListener("push", (event) => {
   const options = {
     body: event.data ? event.data.text() : "쉼on 알림",
-    icon: "/shim-on/logo-mark.png",
-    badge: "/shim-on/logo-mark.png",
+    icon: "./logo-mark.png",
+    badge: "./logo-mark.png",
     vibrate: [100, 50, 100],
     data: {
       dateOfArrival: Date.now(),
@@ -62,12 +62,12 @@ self.addEventListener("push", (event) => {
       {
         action: "explore",
         title: "확인하기",
-        icon: "/shim-on/logo-mark.png",
+        icon: "./logo-mark.png",
       },
       {
         action: "close",
         title: "닫기",
-        icon: "/shim-on/logo-mark.png",
+        icon: "./logo-mark.png",
       },
     ],
   };
@@ -81,6 +81,6 @@ self.addEventListener("notificationclick", (event) => {
 
   if (event.action === "explore") {
     // Open the app
-    event.waitUntil(clients.openWindow("/shim-on/"));
+    event.waitUntil(clients.openWindow("./"));
   }
 });

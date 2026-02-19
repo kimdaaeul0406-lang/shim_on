@@ -15,7 +15,7 @@ function is_logged_in(){ return !empty($_SESSION['user']); }
 function current_user(){ return $_SESSION['user']??null; }
 function is_admin(){ return (current_user()['role']??'user')==='admin'; }
 function guard(){ if(!is_logged_in()){ header('Location:?page=auth'); exit; } }
-function now_k(){ return date('Y.m.d(D) H:i'); }
+function now_k(){ return date('Y-m-d H:i:s'); }
 function today_k(){ return date('Y.m.d (D)'); }
 function today_key(){ return date('Y-m-d'); }
 function size_h($b){ $u=['B','KB','MB','GB','TB']; $i=0; while($b>=1024 && $i<count($u)-1){$b/=1024;$i++;} return sprintf('%.1f %s',$b,$u[$i]); }
@@ -125,34 +125,7 @@ if(($_POST['action']??'')==='signup'){
 
   header('Location:?page=main'); exit;
 }
-if(($_POST['action']??'')==='login'){
-  $email=trim($_POST['email']??''); 
-  $pw=trim($_POST['password']??'');
 
-  if($email==='daseul0406') $email='daseul0406@admin.local'; // 단축키 유지
-
-  try {
-    $st = db()->prepare("SELECT * FROM users WHERE email=?");
-    $st->execute([$email]);
-    $u = $st->fetch();
-  } catch (Throwable $e) {
-    $_SESSION['flash_err'] = "로그인 처리 중 오류가 발생했습니다.";
-    header('Location:?page=auth&mode=login'); exit;
-  }
-
-  if(!$u || !password_verify($pw, $u['password_hash'])){
-    $_SESSION['flash_err']="이메일 또는 비밀번호가 올바르지 않습니다.";
-    header('Location:?page=auth&mode=login'); exit;
-  }
-
-  session_regenerate_id(true);
-  $_SESSION['user']=$u;
-  $_SESSION['locked']=false;
-  $_SESSION['users'][$email]=$u; // 호환용 세션 미러링
-  user_store($email);
-
-  header('Location:?page=main'); exit;
-}
 
 
 if(($_POST['action']??'')==='login'){
@@ -205,61 +178,88 @@ if(isset($_GET['logout'])){
 }
 
 /* ---------- Actions: 메모/레코드 ---------- */
+/* ---------- Actions: 메모/레코드 (DB) ---------- */
 if(($_POST['action']??'')==='upload'){
   guard(); if($_SESSION['locked']){ header('Location:?page=unlock'); exit; }
-  $email=current_user()['email']; $S=&user_store($email);
+  $u=current_user();
   $text=trim($_POST['text']??''); $imgPath=null;
   $up=handle_upload_image('photo','memo'); if($up) $imgPath=$up;
+  
   if($text!=='' || $imgPath){
-    array_unshift($S['records'],['date'=>today_key(),'datetime'=>now_k(),'text'=>$text,'img'=>$imgPath]);
+    // DB Insert
+    $st = db()->prepare("INSERT INTO records(user_id, date, datetime, text, img) VALUES (?, ?, ?, ?, ?)");
+    $st->execute([$u['id'], today_key(), now_k(), $text, $imgPath]);
   }
   header('Location:?page=main&saved=1'); exit;
 }
 
 if(($_POST['action']??'')==='del_record'){
   guard(); if($_SESSION['locked']){ header('Location:?page=unlock'); exit; }
-  $email=current_user()['email']; $S=&user_store($email);
-  $i=(int)($_POST['idx']??-1); if(isset($S['records'][$i])) array_splice($S['records'],$i,1);
+  // idx -> id (DB ID)
+  $id = $_POST['idx'] ?? 0;
+  $st = db()->prepare("DELETE FROM records WHERE id=? AND user_id=?");
+  $st->execute([$id, current_user()['id']]);
   header('Location:?page=records'); exit;
 }
 
-/* ---------- Actions: 알림 ---------- */
+/* ---------- Actions: 알림 (DB) ---------- */
 if(($_POST['action']??'')==='reminder'){
   guard(); if($_SESSION['locked']){ header('Location:?page=unlock'); exit; }
-  $email=current_user()['email']; $S=&user_store($email);
+  $u=current_user();
+  
   if(isset($_POST['add'])){
     $label=trim($_POST['label']??'매일'); $time=trim($_POST['time']??'14:00');
     $days=implode(',', $_POST['days']??['mon','tue','wed','thu','fri','sat','sun']);
-    $S['reminders'][]=['label'=>$label,'time'=>$time,'days'=>$days];
+    $st = db()->prepare("INSERT INTO reminders(user_id, label, time, days) VALUES(?,?,?,?)");
+    $st->execute([$u['id'], $label, $time, $days]);
     $_SESSION['flash_ok']="알림이 추가되었습니다.";
   }
   if(isset($_POST['remove'])){
-    $i=(int)$_POST['remove']; if(isset($S['reminders'][$i])) array_splice($S['reminders'],$i,1);
+    $id=$_POST['remove'];
+    $st=db()->prepare("DELETE FROM reminders WHERE id=? AND user_id=?");
+    $st->execute([$id, $u['id']]);
     $_SESSION['flash_ok']="알림이 삭제되었습니다.";
   }
+  // Edit is tricky with DB list index logic, let's keep it simple: delete & add, or update by ID.
+  // The view currently uses array index. I'll need to update the view to use DB ID.
+  // For now, I'll assume the view sends DB ID in 'edit' field.
   if(isset($_POST['edit'])){
-    $i=(int)$_POST['edit']; if(isset($S['reminders'][$i])){
-      $S['reminders'][$i]['label']=trim($_POST['label']??$S['reminders'][$i]['label']);
-      $S['reminders'][$i]['time']=trim($_POST['time']??$S['reminders'][$i]['time']);
-      $S['reminders'][$i]['days']=implode(',', $_POST['days']??explode(',',$S['reminders'][$i]['days']));
-      $_SESSION['flash_ok']="알림이 수정되었습니다.";
-    }
+    $id=$_POST['edit'];
+    $label=trim($_POST['label']); $time=trim($_POST['time']);
+    $days=implode(',', $_POST['days']??[]);
+    $st=db()->prepare("UPDATE reminders SET label=?, time=?, days=? WHERE id=? AND user_id=?");
+    $st->execute([$label, $time, $days, $id, $u['id']]);
+    $_SESSION['flash_ok']="알림이 수정되었습니다.";
   }
   header('Location:?page=reminders'); exit;
 }
 
-/* ---------- Actions: 설정(프로필/소리/화면/잠금/계정) ---------- */
+/* ---------- Actions: 설정 (DB) ---------- */
 if(($_POST['action']??'')==='settings'){
   guard(); if($_SESSION['locked']){ header('Location:?page=unlock'); exit; }
-  $email=current_user()['email']; $S=&user_store($email);
-  $S['settings']['nickname']=trim($_POST['nickname']??($S['settings']['nickname']??'사용자'));
-  $S['settings']['sound_on']=isset($_POST['sound_on']);
-  $S['settings']['theme']=($_POST['theme']??'light')==='dark'?'dark':'light';
-  $_SESSION['users'][$email]['nickname']=$S['settings']['nickname'];
-  $_SESSION['users'][$email]['sound_on']=$S['settings']['sound_on'];
-  $_SESSION['users'][$email]['theme']=$S['settings']['theme'];
-  $_SESSION['user']=$_SESSION['users'][$email];
+  $u=current_user();
+  
+  $nick = trim($_POST['nickname']??$u['nickname']);
+  $sound = isset($_POST['sound_on']) ? 1 : 0;
+  $theme = ($_POST['theme']??'light')==='dark'?'dark':'light';
+  
+  $st = db()->prepare("UPDATE users SET nickname=?, sound_on=?, theme=? WHERE id=?");
+  $st->execute([$nick, $sound, $theme, $u['id']]);
+  
+  // 세션 갱신
+  $_SESSION['user']['nickname'] = $nick;
+  $_SESSION['user']['sound_on'] = $sound;
+  $_SESSION['user']['theme']    = $theme;
+  
   header('Location:?page=settings&saved=1'); exit;
+}
+if(($_POST['action']??'')==='delete_account'){
+  guard();
+  $u=current_user();
+  $st = db()->prepare("DELETE FROM users WHERE id=?");
+  $st->execute([$u['id']]);
+  session_destroy();
+  header('Location:?page=welcome'); exit;
 }
 if(($_POST['action']??'')==='lock_settings'){
   guard();
@@ -347,62 +347,69 @@ if(($_POST['action']??'')==='admin_branding_clear' && is_admin()){
   header('Location:?page=admin&atab=branding'); exit;
 }
 
-/* ---------- Admin: 사용자/기록 액션 ---------- */
+/* ---------- Admin: 사용자/기록 액션 (DB) ---------- */
 if(($_POST['action']??'')==='admin_user_update' && is_admin()){
   if($_SESSION['locked']){ header('Location:?page=unlock'); exit; }
-  $email=trim($_POST['email']); if(isset($_SESSION['users'][$email])){
-    $_SESSION['users'][$email]['nickname']=trim($_POST['nickname']??$_SESSION['users'][$email]['nickname']);
-    $_SESSION['users'][$email]['theme']=($_POST['theme']??'light')==='dark'?'dark':'light';
-    $_SESSION['users'][$email]['sound_on']=isset($_POST['sound_on']);
-    $_SESSION['users'][$email]['role']=($_POST['role']??'user')==='admin'?'admin':'user';
-    $S=&user_store($email);
-    $S['settings']['nickname']=$_SESSION['users'][$email]['nickname'];
-    $S['settings']['theme']=$_SESSION['users'][$email]['theme'];
-    $S['settings']['sound_on']=$_SESSION['users'][$email]['sound_on'];
-  }
+  $email=trim($_POST['email']);
+  
+  $nick=trim($_POST['nickname']);
+  $theme=($_POST['theme']??'light')==='dark'?'dark':'light';
+  $sound=isset($_POST['sound_on'])?1:0;
+  $role=($_POST['role']??'user')==='admin'?'admin':'user';
+  
+  $st = db()->prepare("UPDATE users SET nickname=?, theme=?, sound_on=?, role=? WHERE email=?");
+  $st->execute([$nick,$theme,$sound,$role,$email]);
+  
   header('Location:?page=admin&atab=users'); exit;
 }
 if(($_POST['action']??'')==='admin_user_delete' && is_admin()){
   if($_SESSION['locked']){ header('Location:?page=unlock'); exit; }
-  $email=trim($_POST['email']); if(isset($_SESSION['users'][$email])){
-    unset($_SESSION['store'][$email]); unset($_SESSION['users'][$email]);
-  }
+  $email=trim($_POST['email']);
+  $st = db()->prepare("DELETE FROM users WHERE email=?");
+  $st->execute([$email]);
   header('Location:?page=admin&atab=users'); exit;
 }
 if(($_POST['action']??'')==='admin_impersonate' && is_admin()){
   if($_SESSION['locked']){ header('Location:?page=unlock'); exit; }
-  $email=trim($_POST['email']); if(isset($_SESSION['users'][$email])){
-    $_SESSION['user']=$_SESSION['users'][$email]; $_SESSION['locked']=false;
+  $email=trim($_POST['email']);
+  $st = db()->prepare("SELECT * FROM users WHERE email=?");
+  $st->execute([$email]);
+  $u = $st->fetch();
+  if($u){
+    $_SESSION['user']=$u; $_SESSION['locked']=false;
     header('Location:?page=main'); exit;
   }
   header('Location:?page=admin&atab=users'); exit;
 }
 if(($_POST['action']??'')==='admin_pwd_reset' && is_admin()){
   if($_SESSION['locked']){ header('Location:?page=unlock'); exit; }
-  $email=trim($_POST['email']); if(isset($_SESSION['users'][$email])){
-    $_SESSION['users'][$email]['password_hash']=password_hash('1234', PASSWORD_DEFAULT);
-    $_SESSION['flash_ok']="비밀번호가 1234로 초기화되었습니다.";
-  }
+  $email=trim($_POST['email']);
+  $hash = password_hash('1234', PASSWORD_DEFAULT);
+  $st = db()->prepare("UPDATE users SET password_hash=? WHERE email=?");
+  $st->execute([$hash, $email]);
+  $_SESSION['flash_ok']="비밀번호가 1234로 초기화되었습니다.";
   header('Location:?page=admin&atab=users'); exit;
 }
 if(($_POST['action']??'')==='admin_record_delete' && is_admin()){
   if($_SESSION['locked']){ header('Location:?page=unlock'); exit; }
-  $email=trim($_POST['email']); $idx=(int)$_POST['idx'];
-  $S=&user_store($email);
-  if(isset($S['records'][$idx])) array_splice($S['records'],$idx,1);
+  $id = $_POST['idx']; // ID
+  $st=db()->prepare("DELETE FROM records WHERE id=?");
+  $st->execute([$id]);
   header('Location:?page=admin&atab=records'); exit;
 }
 if(($_POST['action']??'')==='admin_records_bulk_delete' && is_admin()){
   if($_SESSION['locked']){ header('Location:?page=unlock'); exit; }
   $email=trim($_POST['email']); $days=(int)($_POST['days']??0);
-  if(isset($_SESSION['store'][$email]) && $days>0){
-    $cut=strtotime("-{$days} days");
-    $S=&user_store($email);
-    $S['records']=array_values(array_filter($S['records'],function($r) use($cut){
-      $ds=$r['date']??substr(str_replace(['.',' '],['-',''],$r['datetime']??today_key()),0,10);
-      $ts=strtotime($ds);
-      return $ts===false || $ts>=$cut;
-    }));
+  if($days>0){
+    $cut=date('Y-m-d', strtotime("-{$days} days"));
+    // email -> user_id
+    $st=db()->prepare("SELECT id FROM users WHERE email=?");
+    $st->execute([$email]);
+    $uid=$st->fetchColumn();
+    if($uid){
+      $st=db()->prepare("DELETE FROM records WHERE user_id=? AND date < ?");
+      $st->execute([$uid, $cut]);
+    }
   }
   header('Location:?page=admin&atab=records'); exit;
 }
@@ -444,7 +451,9 @@ $app=$_SESSION['app'];
 /* ★ 추가: JS 주입용 리마인더 데이터 준비 */
 $reminders_for_js = [];
 if (is_logged_in()) {
-  $reminders_for_js = user_store($u['email'])['reminders'] ?? [];
+  $st = db()->prepare("SELECT * FROM reminders WHERE user_id=?");
+  $st->execute([$u['id']]);
+  $reminders_for_js = $st->fetchAll();
 }
 
 /* 잠금 처리 */
@@ -466,15 +475,14 @@ if(is_logged_in()){
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="쉼on">
-<link rel="apple-touch-icon" href="/shim-on/logo-mark.png">
-<link rel="manifest" href="/shim-on/manifest.json">
-<link rel="stylesheet" href="/shim-on/style.css?v=20251030-fix1">
+<link rel="apple-touch-icon" href="./logo-mark.png">
+<link rel="manifest" href="./manifest.json">
+<link rel="stylesheet" href="./style.css?v=20251030-fix1">
 
 
 <!-- head 맨 아래나 body 닫기 직전에 한 줄만 -->
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-<script src="/shim-on/JavaScript.js?v=20251027"></script>
-<script src="/shim-on/JavaScript.js?v=20251029b"></script>
+<script src="./JavaScript.js?v=20251029b"></script>
 
 
 <!-- ★ 전역 SHIM 설정 주입 -->
@@ -484,11 +492,10 @@ if(is_logged_in()){
     reminders: <?= json_encode($reminders_for_js, JSON_UNESCAPED_UNICODE) ?>,
     timezone: "Asia/Seoul",
     // ✅ 현재 사용자 식별값(카카오 로그인 우선 → 앱 로그인 이메일 → guest)
-    currentUserId: <?= json_encode(($_SESSION['kakao_id'] ?? ($u['email'] ?? 'guest'))) ?>
+    currentUserId: <?= json_encode(is_logged_in() ? (string)($u['id']??'guest') : 'guest') ?>
   };
 </script>
-<link rel="stylesheet" href="/shim-on/style.css">
-<link rel="manifest" href="/shim-on/manifest.json">
+
 <meta name="mobile-web-app-capable" content="yes">
 </head>
 <body class="<?=$themeClass?>">
@@ -500,7 +507,7 @@ if(is_logged_in()){
         <?php if($app['logo']): ?>
           <img src="<?=htmlspecialchars($app['logo'])?>" alt="logo">
         <?php else: ?><span onClick="movemain()">
-          <img src="/shim-on/logo-mark.png" ></span>
+          <img src="./logo-mark.png" ></span>
         <?php endif; ?>
       
       </div>
@@ -539,7 +546,7 @@ if(is_logged_in()){
       <main class="content">
         <section class="splash" style="min-height:calc(100dvh - 120px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px">
           <!-- ✅ 고정 이미지: 원하시는 파일명/경로로 바꾸세요 -->
-           <img src="/shim-on/logo-word.png"
+           <img src="./logo-word.png"
                alt="메인 이미지"
                style="width:min(66%,420px);max-width:420px;border-radius:12px; solid var(--line);object-fit:cover">
     
@@ -600,10 +607,18 @@ if(is_logged_in()){
 
   /* ===== MAIN ===== */
   elseif($page==='main'): guard();
-    $email=current_user()['email']; $S=&user_store($email);
-    $nickname=$S['settings']['nickname']??'사용자';
-    $first=$S['reminders'][0]??['label'=>'매일','time'=>'14:00'];
-    $preview=array_slice($S['records'],0,5); ?>
+    $email=current_user()['email']; 
+    $nickname=current_user()['nickname']??'사용자';
+    
+    // 첫 알림
+    $st=db()->prepare("SELECT * FROM reminders WHERE user_id=? ORDER BY time ASC LIMIT 1");
+    $st->execute([current_user()['id']]);
+    $first=$st->fetch() ?: ['label'=>'매일','time'=>'14:00'];
+    
+    // 미리보기
+    $st=db()->prepare("SELECT * FROM records WHERE user_id=? ORDER BY datetime DESC LIMIT 5");
+    $st->execute([current_user()['id']]);
+    $preview=$st->fetchAll(); ?>
     <main class="content">
       <section class="hero">
         <div class="row">
@@ -674,15 +689,28 @@ if(is_logged_in()){
   <?php
   /* ===== 달력 전체보기 ===== */
   elseif($page==='records'): guard();
-    $email=current_user()['email']; $S=&user_store($email);
+    $u=current_user();
     $ym = isset($_GET['month']) && preg_match('/^\d{4}-\d{2}$/', $_GET['month']) ? $_GET['month'] : date('Y-m');
     $on = isset($_GET['on']) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $_GET['on']) ? $_GET['on'] : null;
+
     $first=DateTime::createFromFormat('Y-m-d',$ym.'-01');
     $firstDow=(int)$first->format('N'); $gridStart=clone $first; $gridStart->modify('-'.($firstDow-1).' day');
     $last=(clone $first)->modify('last day of this month'); $lastDow=(int)$last->format('N'); $gridEnd=clone $last; $gridEnd->modify('+'.(7-$lastDow).' day');
     $diffDays=(int)$gridStart->diff($gridEnd)->format('%a'); if($diffDays<41) $gridEnd->modify('+'.(41-$diffDays).' day');
-    $counts=[]; foreach($S['records'] as $r){ $d=$r['date']??substr(str_replace(['.',' '],['-',''],$r['datetime']??today_key()),0,10); if(preg_match('/^\d{4}-\d{2}-\d{2}$/',$d)) $counts[$d]=($counts[$d]??0)+1; }
-    $listForDay=[]; if($on){ foreach($S['records'] as $idx=>$r){ $d=$r['date']??substr(str_replace(['.',' '],['-',''],$r['datetime']??today_key()),0,10); if($d===$on){ $r['_idx']=$idx; $listForDay[]=$r; } } }
+    
+    // DB Counts
+    $st = db()->prepare("SELECT date, count(*) as cnt FROM records WHERE user_id=? AND date LIKE ? GROUP BY date");
+    $st->execute([$u['id'], "$ym%"]);
+    $counts=[]; foreach($st->fetchAll() as $row) $counts[$row['date']] = $row['cnt'];
+    
+    // DB Day List
+    $listForDay=[]; 
+    if($on){ 
+      $st = db()->prepare("SELECT * FROM records WHERE user_id=? AND date=? ORDER BY datetime DESC");
+      $st->execute([$u['id'], $on]);
+      $listForDay = $st->fetchAll();
+    }
+    
     $prevMonth=(clone $first)->modify('-1 month')->format('Y-m'); $nextMonth=(clone $first)->modify('+1 month')->format('Y-m');
   ?>
   
@@ -709,15 +737,60 @@ if(is_logged_in()){
             <article class="pill">
               <div class="subtitle" style="margin-bottom:6px"><?=htmlspecialchars($r['datetime']??($r['date']??''))?></div>
               <?php if(!empty($r['img'])): ?><img src="<?=htmlspecialchars($r['img'])?>" style="width:100%;border-radius:8px;margin-top:4px" alt="record" onerror="this.style.display='none'"><?php endif; ?>
-              <?php if(!empty($r['text'])): ?><div style="margin-top:8px"><?=nl2br(htmlspecialchars($r['text']))?></div><?php endif; ?>
-              <form method="post" style="margin-top:10px" onsubmit="return confirm('이 기록을 삭제할까요?');">
-                <input type="hidden" name="action" value="del_record"><input type="hidden" name="idx" value="<?=$r['_idx']?>">
+                <input type="hidden" name="action" value="del_record"><input type="hidden" name="idx" value="<?=$r['id']?>">
                 <button class="btn danger" type="submit">삭제</button>
               </form>
             </article>
           <?php endforeach; ?>
         <?php endif; ?>
       </div>
+    </main>
+
+  <?php
+  /* ===== 쉼 피드 (공유 게시판) ===== */
+  elseif($page==='feed'): guard();
+    $u=current_user();
+    $nickname=$u['nickname'] ?? '익명';
+  ?>
+    <main class="content">
+      <div class="pill" style="max-width:600px;margin:0 auto">
+        <div style="font-weight:900;margin-bottom:8px">쉼 피드</div>
+        <div class="subtitle">서로의 쉼을 응원하고 공유하는 공간입니다.</div>
+        
+        <div style="margin-top:16px;display:grid;gap:8px">
+          <textarea id="memo-text" class="btn" style="width:100%;height:100px;padding:12px;text-align:left" placeholder="오늘 어떤 쉼이 있었나요?"></textarea>
+          
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+             <input type="text" id="memo-author" class="btn" style="flex:1;min-width:120px" placeholder="작성자(선택)" value="<?=htmlspecialchars($nickname)?>">
+             <!-- 파일 선택 커스텀 -->
+             <label class="btn" style="width:auto;cursor:pointer">
+               📷 사진
+               <input type="file" id="photo" style="display:none" accept="image/*">
+             </label>
+             <input type="hidden" id="memo-photo-url">
+          </div>
+          <div class="subtitle" id="file-name-display" style="font-size:12px;color:var(--primary);display:none"></div>
+
+          <button id="share-btn" class="btn primary" style="margin-top:4px">공유하기</button>
+        </div>
+      </div>
+
+      <ul id="feed-list" class="list" style="max-width:600px;margin:16px auto 0;display:grid;gap:12px">
+         <!-- JS가 렌더링 -->
+         <li class="pill" style="text-align:center;padding:20px">피드 불러오는 중...</li>
+      </ul>
+      
+      <script>
+        // 파일 선택 시 이름 표시 & 업로드
+        document.getElementById('photo').addEventListener('change', function(e){
+          if(e.target.files[0]) {
+             document.getElementById('file-name-display').style.display='block';
+             document.getElementById('file-name-display').innerText = '사진 선택됨: ' + e.target.files[0].name;
+          }
+        });
+        // 페이지 로드 시 피드 로딩 호출 (JS에서 수행하지만 안전장치)
+        if(window.loadFeed) window.loadFeed();
+      </script>
     </main>
 <?php
 /* ===== FEED ===== */
@@ -737,8 +810,11 @@ elseif ($page==='feed'): guard(); ?>
   
   /* ===== 알림 설정 ===== */
   elseif($page==='reminders'): guard();
-    $email=current_user()['email']; $S=&user_store($email);
-    $ok=flash_get('flash_ok'); ?>
+    $u=current_user();
+    $ok=flash_get('flash_ok'); 
+    $st=db()->prepare("SELECT * FROM reminders WHERE user_id=? ORDER BY time ASC");
+    $st->execute([$u['id']]);
+    $reminders=$st->fetchAll(); ?>
     <main class="content">
       <?php if($ok): ?><div class="subtitle" style="color:var(--green)"><?=$ok?></div><?php endif; ?>
       <form class="pill" method="post" style="display:grid;gap:12px;max-width:560px;margin:0 auto">
@@ -759,7 +835,7 @@ elseif ($page==='feed'): guard(); ?>
       </form>
 
       <div class="list" style="max-width:560px;margin:8px auto 0">
-        <?php foreach($S['reminders'] as $i=>$r): $days=explode(',',$r['days']); ?>
+        <?php foreach($reminders as $r): $days=explode(',',$r['days']); ?>
           <form class="pill" method="post" style="display:grid;gap:10px">
             <input type="hidden" name="action" value="reminder">
             <div style="display:flex;gap:8px">
@@ -773,8 +849,8 @@ elseif ($page==='feed'): guard(); ?>
               <?php endforeach; ?>
             </div>
             <div style="display:flex;gap:8px;justify-content:center">
-              <button class="btn primary" name="edit" value="<?=$i?>">수정</button>
-              <button class="btn danger" name="remove" value="<?=$i?>" onclick="return confirm('이 알림을 삭제할까요?')">삭제</button>
+              <button class="btn primary" name="edit" value="<?=$r['id']?>">수정</button>
+              <button class="btn danger" name="remove" value="<?=$r['id']?>" onclick="return confirm('이 알림을 삭제할까요?')">삭제</button>
             </div>
           </form>
         <?php endforeach; ?>
@@ -784,7 +860,13 @@ elseif ($page==='feed'): guard(); ?>
   <?php
   /* ===== SETTINGS ===== */
   elseif($page==='settings'): guard();
-    $email=current_user()['email']; $S=&user_store($email); ?>
+    $u=current_user();
+    $S=['settings'=>[
+      'nickname'=>$u['nickname'],
+      'theme'=>$u['theme'],
+      'sound_on'=>$u['sound_on'],
+      'lock_on'=>false // 잠금 설정은 DB에 컬럼이 없어 세션/기본값 사용
+    ]]; ?>
     <main class="content">
       <?php if(!$stab): ?>
         <div class="list" style="max-width:560px;margin:0 auto">
@@ -1029,9 +1111,11 @@ elseif ($page==='feed'): guard(); ?>
   <?php
   /* ===== ADMIN ===== */
   elseif($page==='admin'): guard(); if(!is_admin()){ header('Location:?page=main'); exit; }
-    $userCount = count($_SESSION['users']);
-    $recordCount=0; $remCount=0;
-    foreach($_SESSION['store'] as $Sx){ $recordCount+=count($Sx['records']??[]); $remCount+=count($Sx['reminders']??[]); }
+    // DB Counts
+    $userCount   = db()->query("SELECT count(*) FROM users")->fetchColumn();
+    $recordCount = db()->query("SELECT count(*) FROM records")->fetchColumn();
+    $remCount    = db()->query("SELECT count(*) FROM reminders")->fetchColumn();
+    
     $upDir=uploads_dir(); $files = is_dir($upDir)?glob($upDir.'/*'):[]; $size=0; if($files) foreach($files as $f){ $size+=@filesize($f)?:0; }
     $q=$_GET['q']??''; $ok=flash_get('flash_ok');
   ?>
@@ -1067,9 +1151,15 @@ elseif ($page==='feed'): guard(); ?>
               </form>
             </div>
             <div class="admin-users">
-              <?php foreach($_SESSION['users'] as $email=>$uu):
-                if($q && stripos($email.$uu['nickname'],$q)===false) continue;
-                $role=$uu['role']; $theme=$uu['theme']; $sound=$uu['sound_on']; $nick=$uu['nickname']; $joined=$uu['created_at']??''; ?>
+            <div class="admin-users">
+              <?php 
+                $sql = "SELECT * FROM users WHERE 1=1";
+                if($q) $sql .= " AND (email LIKE '%$q%' OR nickname LIKE '%$q%')";
+                $rows = db()->query($sql)->fetchAll();
+                foreach($rows as $uu):
+                  $email=$uu['email']; $id=$uu['id'];
+                  $role=$uu['role']; $theme=$uu['theme']; $sound=$uu['sound_on']; $nick=$uu['nickname']; $joined=$uu['created_at']??''; 
+              ?>
               <div class="u-card">
                 <div class="u-left">
                   <div class="u-ident">
@@ -1122,20 +1212,27 @@ elseif ($page==='feed'): guard(); ?>
               </form>
             </div>
             <div class="grid2">
-              <?php foreach($_SESSION['store'] as $email=>$Sx):
-                if($femail && stripos($email,$femail)===false) continue;
-                foreach(($Sx['records']??[]) as $i=>$r):
-                  if($fdate && ($r['date']??'')!==$fdate) continue; ?>
+            <div class="grid2">
+              <?php 
+                $sql = "SELECT r.*, u.email FROM records r JOIN users u ON r.user_id=u.id WHERE 1=1";
+                if($femail) $sql .= " AND u.email LIKE '%$femail%'";
+                if($fdate) $sql .= " AND r.date='$fdate'";
+                $sql .= " ORDER BY r.datetime DESC LIMIT 200";
+                $rows = db()->query($sql)->fetchAll();
+
+                foreach($rows as $r): 
+                  $email = $r['email'];
+              ?>
                 <article class="pill">
                   <div class="subtitle" style="margin-bottom:6px"><?=htmlspecialchars($email)?> · <?=$r['datetime']??$r['date']??''?></div>
                   <?php if(!empty($r['img'])): ?><img src="<?=htmlspecialchars($r['img'])?>" style="width:100%;border-radius:8px;margin-top:4px" onerror="this.style.display='none'"><?php endif; ?>
                   <?php if(!empty($r['text'])): ?><div style="margin-top:8px"><?=nl2br(htmlspecialchars($r['text']))?></div><?php endif; ?>
                   <form method="post" style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap" onsubmit="return confirm('이 기록을 삭제할까요?');">
-                    <input type="hidden" name="action" value="admin_record_delete"><input type="hidden" name="email" value="<?=htmlspecialchars($email)?>"><input type="hidden" name="idx" value="<?=$i?>">
+                    <input type="hidden" name="action" value="admin_record_delete"><input type="hidden" name="idx" value="<?=$r['id']?>">
                     <button class="btn danger">삭제</button>
                   </form>
                 </article>
-              <?php endforeach; endforeach; ?>
+              <?php endforeach; ?>
             </div>
             <div class="pill" style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
               <form method="post" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
@@ -1152,14 +1249,18 @@ elseif ($page==='feed'): guard(); ?>
           <section class="pill">
             <div style="font-weight:900;margin-bottom:8px">알림 목록(읽기)</div>
             <div class="grid2">
-            <?php foreach($_SESSION['store'] as $email=>$Sx): ?>
+            <div class="grid2">
+            <?php 
+              // Reminders logic is slightly messier to display compact grouped by user with SQL, but flat list is easier.
+              // Let's list all reminders with user email.
+              $rows = db()->query("SELECT r.*, u.email FROM reminders r JOIN users u ON r.user_id=u.id ORDER BY u.email")->fetchAll();
+              foreach($rows as $r):
+            ?>
               <div class="pill">
-                <div style="font-weight:900;margin-bottom:6px"><?=htmlspecialchars($email)?></div>
-                <ul class="subtitle" style="margin:0;padding-left:18px">
-                  <?php foreach(($Sx['reminders']??[]) as $r): ?>
-                    <li><?=htmlspecialchars($r['label'])?> · <?=htmlspecialchars($r['time'])?> · <?=htmlspecialchars($r['days'])?></li>
-                  <?php endforeach; ?>
-                </ul>
+                <div style="font-weight:900;margin-bottom:6px"><?=htmlspecialchars($r['email'])?></div>
+                <div class="subtitle">
+                  <?=htmlspecialchars($r['label'])?> · <?=htmlspecialchars($r['time'])?> · <?=htmlspecialchars($r['days'])?>
+                </div>
               </div>
             <?php endforeach; ?>
             </div>
@@ -1223,8 +1324,7 @@ elseif ($page==='feed'): guard(); ?>
         <?php if(is_logged_in()): ?>
           <a href="?page=main" onclick="document.querySelector('.menu').classList.remove('open')">메인</a>
           <a href="?page=records" onclick="document.querySelector('.menu').classList.remove('open')">전체 기록</a>
-          <!-- 메뉴 링크들 사이 어딘가에 추가 -->
-<a href="/shim-on/index.php?page=feed" class="btn">쉼 피드</a>
+          <a href="?page=feed" onclick="document.querySelector('.menu').classList.remove('open')">쉼 피드</a>
 
           <a href="?page=reminders" onclick="document.querySelector('.menu').classList.remove('open')">알림 설정</a>
           <a href="?page=settings" onclick="document.querySelector('.menu').classList.remove('open')">설정</a>

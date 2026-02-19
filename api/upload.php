@@ -58,13 +58,17 @@ $ext = pathinfo($f['name'] ?? '', PATHINFO_EXTENSION) ?: 'jpg';
 $new = uniqid('memo_', true) . '.' . $ext;
 $dest = $uploadDir . $new;
 
+$base = dirname(dirname($_SERVER['SCRIPT_NAME']));
+if ($base === '/' || $base === '\\') $base = '';
+$urlPath = $base . '/uploads/' . $new;
+
 clearstatcache();
 $writable = is_writable($uploadDir);
 
 if (!@move_uploaded_file($f['tmp_name'], $dest)) {
   // 마지막 수단: 권한 문제 회피용 copy 시도
   if (@copy($f['tmp_name'], $dest)) {
-    out(200, ['success'=>true, 'url'=>'/shim-on/uploads/'.$new, 'fallback'=>'copy', 'writable'=>$writable, 'ini'=>$ini]);
+    out(200, ['success'=>true, 'url'=>$urlPath, 'fallback'=>'copy', 'writable'=>$writable, 'ini'=>$ini]);
   }
   $perm = is_dir($uploadDir) ? substr(sprintf('%o', fileperms($uploadDir)), -4) : 'NA';
   out(500, [
@@ -78,4 +82,4 @@ if (!@move_uploaded_file($f['tmp_name'], $dest)) {
   ]);
 }
 
-out(200, ['success'=>true, 'url'=>'/shim-on/uploads/'.$new]);
+out(200, ['success'=>true, 'url'=>$urlPath]);

@@ -4,39 +4,14 @@
 // POST:   JSON or form {feed_id,text,photo_url,author} → {success:true,id:...}
 // DELETE: ?feed_id=...  body: id=...       → {ok:true}  (작성자만 삭제)
 
-// 세션은 최상단에서 시작 (카카오/앱 로그인 식별용)
 if (session_status() === PHP_SESSION_NONE) session_start();
 
 header('Content-Type: application/json; charset=UTF-8');
 header('Cache-Control: no-cache');
 
-// ===== 경로/파일 준비 =====
-$DATA_DIR  = __DIR__ . '/data';
-$MEMO_FILE = $DATA_DIR . '/memos.json';
-if (!is_dir($DATA_DIR)) { @mkdir($DATA_DIR, 0755, true); }
-if (!file_exists($MEMO_FILE)) { file_put_contents($MEMO_FILE, '[]'); }
+require_once __DIR__ . '/../db.php';
 
-// ===== 유틸 =====
-function load_all() {
-  global $MEMO_FILE;
-  $raw = @file_get_contents($MEMO_FILE);
-  $arr = json_decode($raw ?: '[]', true);
-  return is_array($arr) ? $arr : [];
-}
-function save_all($arr) {
-  global $MEMO_FILE;
-  // 간단 파일락
-  $fp = fopen($MEMO_FILE, 'c+');
-  if (!$fp) return false;
-  flock($fp, LOCK_EX);
-  ftruncate($fp, 0);
-  rewind($fp);
-  $ok = fwrite($fp, json_encode($arr, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES)) !== false;
-  fflush($fp);
-  flock($fp, LOCK_UN);
-  fclose($fp);
-  return $ok;
-}
+// 유틸
 function json_body() {
   $ct = $_SERVER['CONTENT_TYPE'] ?? $_SERVER['HTTP_CONTENT_TYPE'] ?? '';
   if (stripos($ct, 'application/json') !== false) {
@@ -49,11 +24,10 @@ function json_body() {
 function param($key, $default=null) {
   return $_GET[$key] ?? $_POST[$key] ?? $default;
 }
-// 현재 로그인 사용자 식별 (카카오 우선 → 앱 이메일 → guest)
-function current_user_id() {
-  if (!empty($_SESSION['kakao_id'])) return (string)$_SESSION['kakao_id'];
-  if (!empty($_SESSION['user']['email'])) return (string)$_SESSION['user']['email'];
-  return 'guest';
+// 작성자 식별
+function current_user_id_val() {
+  if (isset($_SESSION['user']['id'])) return $_SESSION['user']['id'];
+  return null;
 }
 
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
@@ -61,33 +35,45 @@ $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 // ====== GET: 목록 ======
 if ($method === 'GET') {
   $feed_id = param('feed_id', '');
-  $limit   = max(1, (int)param('limit', 200));
+  $limit   = max(1, min(200, (int)param('limit', 200)));
 
-  $all = load_all();
-
-  // feed_id가 주어지면 필터
-  if ($feed_id !== '') {
-    $all = array_values(array_filter($all, function($m) use ($feed_id) {
-      return (string)($m['feed_id'] ?? '') === (string)$feed_id;
-    }));
+  try {
+    $sql = "SELECT * FROM feeds WHERE public=1";
+    $params = [];
+    
+    if ($feed_id !== '') {
+      $sql .= " AND feed_id=?";
+      $params[] = $feed_id;
+    }
+    
+    $sql .= " ORDER BY created_at DESC LIMIT $limit";
+    
+    $st = db()->prepare($sql);
+    $st->execute($params);
+    $rows = $st->fetchAll();
+    
+    // JSON 응답 포맷 맞추기 (null -> 빈 문자열 등)
+    foreach($rows as &$r){
+      $r['public'] = (bool)$r['public'];
+      // 시간 포맷을 ISO8601로? DB는 'YYYY-MM-DD HH:MM:SS'
+      // JS에서 Date parse 잘 됨. 그대로 둠.
+    }
+    
+    echo json_encode($rows, JSON_UNESCAPED_UNICODE);
+  } catch(Exception $e) {
+    http_response_code(500);
+    echo json_encode(['error'=>$e->getMessage()]);
   }
-
-  // 공개글만
-  $all = array_values(array_filter($all, fn($m) => !empty($m['public'])));
-
-  // 최신순 (ISO8601 / 문자열 비교)
-  usort($all, function($a,$b){
-    return strcmp($b['created_at'] ?? '', $a['created_at'] ?? '');
-  });
-
-  if (count($all) > $limit) $all = array_slice($all, 0, $limit);
-
-  echo json_encode($all, JSON_UNESCAPED_UNICODE);
   exit;
 }
 
-// ====== POST: 저장 (JSON/폼 모두 지원) ======
-if ($method === 'POST' && (($_POST['_method'] ?? '') !== 'DELETE')) {
+// ====== POST: 저장 ======
+if ($method === 'POST') {
+  // DELETE tunneling check
+  if (($_POST['_method'] ?? '') === 'DELETE') {
+      goto handle_delete; // Go to DELETE section
+  }
+
   $body = json_body();
   $feed_id   = $body['feed_id']   ?? param('feed_id', '');
   $text      = $body['text']      ?? param('text', '');
@@ -105,101 +91,90 @@ if ($method === 'POST' && (($_POST['_method'] ?? '') !== 'DELETE')) {
     exit;
   }
 
-  $all = load_all();
-
+  // ID 생성 (기존 로직 유지: m_timestamp)
   $id = 'm_' . (string)round(microtime(true)*1000);
-  $rec = [
-    'id'         => $id,
-    'feed_id'    => (string)$feed_id,
-    'text'       => (string)$text,
-    'photo_url'  => (string)$photo_url,
-    'author'     => (string)($author !== '' ? $author : 'guest'),
-    'user_id'    => current_user_id(),   // ✅ 작성자 식별 저장
-    'public'     => true,
-    'created_at' => gmdate('c'),         // ISO8601(UTC)
-  ];
-
-  // 앞에 추가(최신이 위로)
-  array_unshift($all, $rec);
-  if (!save_all($all)) {
+  $uid = current_user_id_val(); // 로그인 유저 ID (INT or NULL)
+  
+  try {
+    $st = db()->prepare("INSERT INTO feeds (id, feed_id, user_id, author, text, photo_url, public) VALUES (?, ?, ?, ?, ?, ?, 1)");
+    $st->execute([$id, $feed_id, $uid, $author, $text, $photo_url]);
+    
+    echo json_encode([
+      'success'=>true, 
+      'id'=>$id, 
+      'item'=>[
+        'id'=>$id, 'feed_id'=>$feed_id, 'author'=>$author, 'text'=>$text, 'photo_url'=>$photo_url, 'created_at'=>date('Y-m-d H:i:s')
+      ]
+    ], JSON_UNESCAPED_UNICODE);
+  } catch(Exception $e) {
     http_response_code(500);
-    echo json_encode(['success'=>false, 'message'=>'저장 실패']);
-    exit;
+    echo json_encode(['success'=>false, 'message'=>$e->getMessage()]);
   }
-
-  echo json_encode(['success'=>true, 'id'=>$id, 'item'=>$rec], JSON_UNESCAPED_UNICODE);
   exit;
 }
 
-// ====== DELETE: 삭제 (작성자만) ======
+// ====== DELETE: 삭제 ======
+handle_delete:
 if ($method === 'DELETE' || ($method === 'POST' && (($_POST['_method'] ?? '') === 'DELETE'))) {
-  // x-www-form-urlencoded DELETE 바디 파싱
   $raw = file_get_contents('php://input');
   $body = [];
-  if ($raw) parse_str($raw, $body);
+  if ($raw) parse_str($raw, $body); // Parse x-www-form if needed or just use param logic
 
-  $id      = $body['id']      ?? $_POST['id']      ?? $_GET['id']      ?? '';
-  $feed_id = $body['feed_id'] ?? $_POST['feed_id'] ?? $_GET['feed_id'] ?? '';
+  // JSON body might be sent for DELETE too? Usually params or clean body
+  // Let's check both
+  $jbody = json_body();
+  
+  $id      = $jbody['id']      ?? $body['id']      ?? $_POST['id']      ?? $_GET['id']      ?? '';
+  // $feed_id check obsolete for deletion by ID, but keep if needed logic? No, ID is unique PK in DB.
 
   if ($id === '') {
     http_response_code(400);
     echo json_encode(['ok'=>false, 'error'=>'id가 필요합니다']);
     exit;
   }
-  if ($feed_id === '') {
-    http_response_code(400);
-    echo json_encode(['ok'=>false, 'error'=>'feed_id가 필요합니다']);
-    exit;
-  }
 
-  $me  = current_user_id();
-  $all = load_all();
-
-  $found   = false;
-  $removed = false;
-  $kept = [];
-
-  foreach ($all as $m) {
-    $sameId   = ((string)($m['id'] ?? '') === (string)$id);
-    $sameFeed = ((string)($m['feed_id'] ?? '') === (string)$feed_id);
-
-    if ($sameId && $sameFeed) {
-      $found = true;
-      $owner = (string)($m['user_id'] ?? 'guest');
-      if ($owner === $me) {
-        // 소유자 일치 → 삭제
-        $removed = true;
-        continue;
-      } else {
-        // 소유자 불일치 → 유지
-        $kept[] = $m;
-      }
-    } else {
-      $kept[] = $m;
+  $uid = current_user_id_val();
+  
+  try {
+    // Check ownership
+    $st = db()->prepare("SELECT user_id FROM feeds WHERE id=?");
+    $st->execute([$id]);
+    $row = $st->fetch();
+    
+    if (!$row) {
+      http_response_code(404);
+      echo json_encode(['ok'=>false, 'error'=>'대상 메모를 찾을 수 없습니다']);
+      exit;
     }
-  }
+    
+    // Guest posts (user_id IS NULL) -> Can anyone delete? Or only Admin? 
+    // Existing logic: current_user_id() 'guest' could delete 'guest' posts? 
+    // Security: Only logged in owner can delete their own. Guests cannot delete once posted unless we track session?
+    // Let's assume only logged-in users can delete their own posts. 
+    // And Admin can delete anything.
+    
+    $is_admin = isset($_SESSION['user']['role']) && $_SESSION['user']['role']==='admin';
+    $is_owner = ($uid !== null && (string)$row['user_id'] === (string)$uid);
+    
+    if (!$is_owner && !$is_admin) {
+       // If it was posted by 'guest' and I am 'guest', I can't delete it easily without session tracking.
+       // For now, restrict deletion to owner/admin.
+       http_response_code(403);
+       echo json_encode(['ok'=>false, 'error'=>'삭제 권한이 없습니다']);
+       exit; 
+    }
 
-  if (!$found) {
-    http_response_code(404);
-    echo json_encode(['ok'=>false, 'error'=>'대상 메모를 찾을 수 없습니다']);
-    exit;
-  }
-  if (!$removed) {
-    http_response_code(403);
-    echo json_encode(['ok'=>false, 'error'=>'삭제 권한이 없습니다']);
-    exit;
-  }
+    $st = db()->prepare("DELETE FROM feeds WHERE id=?");
+    $st->execute([$id]);
 
-  if (!save_all($kept)) {
+    echo json_encode(['ok'=>true, 'id'=>$id]);
+  } catch(Exception $e) {
     http_response_code(500);
-    echo json_encode(['ok'=>false, 'error'=>'삭제 저장 실패']);
-    exit;
+    echo json_encode(['ok'=>false, 'error'=>$e->getMessage()]);
   }
-
-  echo json_encode(['ok'=>true, 'id'=>$id]);
   exit;
 }
 
-// 그 외 메서드
 http_response_code(405);
 echo json_encode(['error'=>'Method Not Allowed']);
+

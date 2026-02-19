@@ -55,4 +55,27 @@ CREATE TABLE IF NOT EXISTS app_branding (
   id TINYINT PRIMARY KEY,
   hero1 VARCHAR(512), hero2 VARCHAR(512), logo VARCHAR(512)
 );
+-- 공유된 피드 (Shared Memos)
+CREATE TABLE IF NOT EXISTS feeds (
+  id VARCHAR(64) PRIMARY KEY,    -- JSON ID 호환 (예: m_1234.5678)
+  feed_id VARCHAR(40) NOT NULL,  -- shimfeed-global-1 등
+  user_id INT NULL,              -- 로그인 유저의 경우 (guest는 null)
+  author VARCHAR(80) NOT NULL,   -- 작성자(닉네임 or guest)
+  text TEXT,
+  photo_url VARCHAR(512),
+  public TINYINT(1) DEFAULT 1,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
+  INDEX(feed_id, created_at)
+);
+
+-- 피드 좋아요 (선택 구현)
+CREATE TABLE IF NOT EXISTS feed_likes (
+  feed_ref_id VARCHAR(64),
+  user_id INT,
+  PRIMARY KEY(feed_ref_id, user_id),
+  FOREIGN KEY (feed_ref_id) REFERENCES feeds(id) ON DELETE CASCADE,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
 INSERT IGNORE INTO app_branding(id) VALUES (1);
