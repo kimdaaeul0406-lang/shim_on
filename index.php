@@ -496,12 +496,12 @@ if(is_logged_in()){
 <meta name="apple-mobile-web-app-title" content="쉼on">
 <link rel="apple-touch-icon" href="./logo-mark.png">
 <link rel="manifest" href="./manifest.json">
-<link rel="stylesheet" href="./style.css?v=20251030-fix1">
+<link rel="stylesheet" href="./style.css?v=20260220-feed-design">
 
 
 <!-- head 맨 아래나 body 닫기 직전에 한 줄만 -->
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-<script src="./JavaScript.js?v=20251029b"></script>
+<script src="./JavaScript.js?v=20260220-feed-logic"></script>
 
 
 <!-- ★ 전역 SHIM 설정 주입 -->
@@ -770,13 +770,20 @@ if(is_logged_in()){
 /* ===== FEED ===== */
 elseif ($page==='feed'): guard(); ?>
   <main class="content">
-    <section id="feed-page" class="page">
-      <h2 class="feed-title">쉼 피드</h2>
-      <!-- JS가 여기다가 <li>를 그려요 -->
+    <section id="feed-page" class="feed-container">
+      <!-- 헤더 영역 -->
+      <div class="feed-header">
+        <h2 class="feed-title">쉼 피드</h2>
+        <p class="feed-subtitle">서로의 쉼을 나누는 공간</p>
+      </div>
+
+      <!-- 피드 리스트 -->
       <ul id="feed-list" class="feed-list" aria-live="polite"></ul>
 
-      <!-- 선택: 수동 새로고침 버튼 -->
-      <button class="btn" id="btn-feed-reload" type="button">새로고침</button>
+      <!-- 새로고침 버튼 -->
+      <div class="feed-actions">
+        <button class="btn feed-reload-btn" id="btn-feed-reload" type="button">새로고침</button>
+      </div>
     </section>
   </main>
 <?php

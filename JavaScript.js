@@ -714,7 +714,7 @@ $(function () {
     console.log("공유된 메모 개수:", pubs.length);
 
     if (!pubs.length) {
-      listEl.innerHTML = `<div class="feed-empty">아직 공유된 사진이 없어요 🌱<br/>작성할 때 '공유하기'를 체크해 보세요.</div>`;
+      listEl.innerHTML = `<div class="feed-empty"><div class="feed-empty-text">아직 공유된 사진이 없어요<br/>작성할 때 <strong>'공유하기'</strong>를 체크해 보세요!</div></div>`;
       return;
     }
 
@@ -923,19 +923,29 @@ function renderFeed(items) {
   $list.empty();
 
   if (!items || !items.length) {
-    $list.append('<li class="empty">아직 공유된 메모가 없어요.</li>');
+    $list.before(`
+      <div class="feed-empty">
+        <div class="feed-empty-text">
+          아직 공유된 메모가 없어요<br/>
+          메모를 작성할 때 <strong>'공유하기'</strong>를 체크해 보세요!
+        </div>
+      </div>
+    `);
     return;
   }
+
+  // 기존 empty 상태 제거
+  $(".feed-empty").remove();
 
   const me =
     window.SHIM && window.SHIM.currentUserId
       ? String(window.SHIM.currentUserId)
       : "guest";
 
-  items.forEach((it) => {
-    const isOwner = String(it.user_id || "guest") === me; // ✅ 내가 쓴 글인가?
+  items.forEach((it, idx) => {
+    const isOwner = String(it.user_id || "guest") === me;
     const li = $(`
-      <li class="memo">
+      <li class="memo" style="animation-delay:${idx * 60}ms">
         ${it.photo_url
         ? `<img src="${it.photo_url}" alt="" class="memo-img" />`
         : ""
@@ -947,7 +957,7 @@ function renderFeed(items) {
         "ko-KR"
       )}</span>
           ${isOwner
-        ? `<button class="del btn danger small" style="min-width:50px;font-size:13px;padding:4px 10px" data-id="${it.id}">삭제</button>`
+        ? `<button class="del btn danger small" data-id="${it.id}">삭제</button>`
         : ""
       }
         </div>
@@ -1028,7 +1038,18 @@ async function deleteMemo(id) {
 /** ====== 이벤트 바인딩 ====== */
 $(function () {
   // 초기 로드
+  $(".feed-empty").remove(); // 중복 방지
   loadFeed();
+
+  // 새로고침 버튼
+  $("#btn-feed-reload").on("click", async function () {
+    const $btn = $(this);
+    $btn.prop("disabled", true);
+    $(".feed-empty").remove();
+    showToast("새로고침 중...", "info");
+    await loadFeed();
+    $btn.prop("disabled", false);
+  });
 
   // 파일 선택 -> 업로드 -> URL hidden에 저장
   $("#photo").on("change", async function (e) {
